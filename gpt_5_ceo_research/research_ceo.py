@@ -16,7 +16,7 @@ from typing import Optional
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.ceo_websearch_simple import research_ceo_with_websearch
+from src.ceo_research_gpt5 import research_ceo_with_websearch
 from src.utils.logger import get_logger
 
 

@@ -10,7 +10,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from src.ceo_websearch_simple import research_ceo_with_websearch
+from src.ceo_research_gpt5 import research_ceo_with_websearch
 
 
 async def test_ceo_research():
