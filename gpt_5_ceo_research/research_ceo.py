@@ -142,9 +142,6 @@ def _report_verbose_results(profile, output_file: Path) -> None:
     if profile.tenure_years:
         click.echo(f"Tenure: {profile.tenure_years} years")
 
-    if profile.industry:
-        click.echo(f"Industry: {profile.industry}")
-
     if profile.data_completeness:
         click.echo(f"Data Completeness: {profile.data_completeness}")
 

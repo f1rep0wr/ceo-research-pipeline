@@ -132,10 +132,8 @@ async def test_ceo_research(
         # Additional info checks (not failures if missing, but good to have)
         print(f"📊 Additional Info:")
         print(f"   • CEO Title: {profile.ceo_title or 'Not found'}")
-        print(f"   • Age: {profile.age or 'Not found'}")
         print(f"   • Tenure: {profile.tenure_years or 'Not found'} years")
         print(f"   • Previous CEO Experience: {profile.previous_ceo_experience or 'Not found'}")
-        print(f"   • Education: {', '.join(profile.education_schools) if profile.education_schools else 'Not found'}")
 
         # Mark as success if most checks passed
         if result.checks_passed >= 5:  # At least 5 out of 7 core checks

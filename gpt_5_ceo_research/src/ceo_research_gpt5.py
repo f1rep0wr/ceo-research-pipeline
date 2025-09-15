@@ -65,16 +65,12 @@ async def research_ceo_with_websearch(
             verbosity="high"  # Get detailed responses
         )
 
-        # Extract text from response using correct structure
-        if not response.output or len(response.output) < 2:
-            raise ValueError("Invalid response structure from GPT-5")
+        # Extract text from response - robust approach
+        text_content = _extract_text_from_response(response)
 
-        # Extract text content: response.output[1].content[0].text
-        output_message = response.output[1]
-        if not hasattr(output_message, 'content') or not output_message.content:
-            raise ValueError("No content in response output message")
+        if not text_content:
+            raise ValueError("No text content found in GPT-5 response")
 
-        text_content = output_message.content[0].text
         logger.info("Successfully extracted response text from GPT-5")
 
         # Parse JSON response into CEOProfile
@@ -114,7 +110,18 @@ INSTRUCTIONS:
 4. Return ONLY a valid JSON object with the specified structure
 5. Use "unknown" or null for fields where reliable data cannot be found
 6. Ensure all dates are in MM/DD/YYYY format
-7. Be thorough and accurate - this is for research purposes
+7. For previous employment, provide ONLY the most recent company and position before the current CEO role
+8. For initial_join_year, find the YEAR (YYYY) when the person FIRST joined the company in ANY role (even as intern, analyst, etc.)
+9. Be thorough and accurate - this is for research purposes
+
+CRITICAL CLASSIFICATION RULES FOR insider_outsider:
+- Set to "insider" if the person worked at the company BEFORE becoming CEO (promoted from within)
+- Set to "outsider" if the person was hired as CEO from outside (first role at company was CEO)
+- Set to "unknown" ONLY if you cannot determine their prior employment at the company
+- Key indicators:
+  * INSIDER: Had roles like COO, CFO, President, EVP, or any position at the company before CEO
+  * OUTSIDER: Came from another company directly to CEO role
+  * Check "years_before_ceo" field - if > 0, they are an INSIDER
 
 REQUIRED JSON STRUCTURE:
 Return a JSON object with these exact field names:
@@ -123,27 +130,16 @@ Return a JSON object with these exact field names:
     "ceo_name": "{ceo_name}",
     "company_name": "{company_name}",
     "ceo_title": "string or null",
-    "company_ticker": "string or null",
-    "company_exchange": "string or null",
-    "insider_outsider": "insider/outsider/unknown",
+    "insider_outsider": "insider/outsider/unknown (see classification rules above)",
     "ceo_type": "string or null",
     "appointment_date": "MM/DD/YYYY or null",
     "start_date": "MM/DD/YYYY or null",
     "departure_date": "MM/DD/YYYY or 'incumbent'",
     "tenure_years": "number or null",
     "tenure_months": "number or null",
-    "birth_year": "number or null",
-    "age": "number or null",
-    "age_at_appointment": "number or null",
-    "nationality": "string or null",
-    "gender": "string or null",
-    "birthplace": "string or null",
-    "education_schools": ["array of school names"],
-    "education_degrees": ["array of degrees"],
-    "education_majors": ["array of majors"],
-    "mba_school": "string or null",
-    "previous_companies": ["array of company names"],
-    "previous_positions": ["array of position titles"],
+    "previous_company": "most recent previous company name or null",
+    "previous_position": "most recent previous position/title or null",
+    "initial_join_year": "year (YYYY) when first joined company in ANY role or null",
     "years_at_company": "number or null",
     "years_before_ceo": "number or null",
     "previous_ceo_experience": "boolean or null",
@@ -155,15 +151,6 @@ Return a JSON object with these exact field names:
     "departure_voluntary": "boolean or null",
     "successor_name": "string or null",
     "post_ceo_role": "string or null",
-    "industry": "string or null",
-    "company_size": "string or null",
-    "annual_revenue": "number in billions or null",
-    "market_cap": "number in billions or null",
-    "employee_count": "number or null",
-    "fortune_ranking": "number or null",
-    "stock_performance": "string or null",
-    "revenue_growth": "number as percentage or null",
-    "major_achievements": ["array of achievement descriptions"],
     "data_completeness": "high/medium/low",
     "primary_sources": ["array of source descriptions"],
     "last_updated": "{datetime.now().strftime('%m/%d/%Y')}",
@@ -180,6 +167,53 @@ IMPORTANT:
 """
 
     return prompt
+
+
+def _extract_text_from_response(response) -> Optional[str]:
+    """
+    Extract text content from GPT-5 API response object.
+
+    Tries multiple access patterns as the response structure may vary.
+
+    Args:
+        response: The response object from GPT-5 API
+
+    Returns:
+        str: The extracted text content or None if not found
+    """
+    try:
+        # Try different ways to access text content based on response structure
+        if hasattr(response, 'output_text'):
+            logger.debug("Extracting text via response.output_text")
+            return response.output_text
+
+        elif hasattr(response, 'text'):
+            if hasattr(response.text, 'value'):
+                logger.debug("Extracting text via response.text.value")
+                return response.text.value
+            elif hasattr(response.text, 'text'):
+                logger.debug("Extracting text via response.text.text")
+                return response.text.text
+            else:
+                logger.debug("Extracting text via str(response.text)")
+                return str(response.text)
+
+        elif hasattr(response, 'output'):
+            # Try nested structure response.output[0].content[0].text
+            if response.output and len(response.output) > 0:
+                if hasattr(response.output[0], 'content'):
+                    if response.output[0].content and len(response.output[0].content) > 0:
+                        if hasattr(response.output[0].content[0], 'text'):
+                            logger.debug("Extracting text via response.output[0].content[0].text")
+                            return response.output[0].content[0].text
+
+        # If all else fails, try converting response to string
+        logger.warning("Using fallback str(response) to extract text")
+        return str(response)
+
+    except Exception as e:
+        logger.error(f"Failed to extract text from response: {e}")
+        return None
 
 
 def _parse_response_to_profile(response_text: str, ceo_name: str, company_name: str) -> CEOProfile:

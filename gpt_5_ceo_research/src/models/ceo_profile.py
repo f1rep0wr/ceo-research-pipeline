@@ -13,7 +13,7 @@ import re
 
 class CEOProfile(BaseModel):
     """
-    Comprehensive CEO profile data model with 40+ fields.
+    CEO profile data model focused on career and succession information.
 
     Only ceo_name and company_name are required. All other fields are optional
     to avoid forcing completeness when data is incomplete.
@@ -25,11 +25,17 @@ class CEOProfile(BaseModel):
 
     # BASIC INFORMATION
     ceo_title: Optional[str] = Field(None, description="Official title (CEO, President & CEO, etc.)")
-    company_ticker: Optional[str] = Field(None, description="Stock ticker symbol")
-    company_exchange: Optional[str] = Field(None, description="Stock exchange (NYSE, NASDAQ, etc.)")
 
     # CLASSIFICATION
-    insider_outsider: Optional[str] = Field(None, description="Insider or Outsider classification")
+    insider_outsider: Optional[str] = Field(
+        None,
+        description=(
+            "CEO classification based on career path:\n"
+            "- 'insider': Promoted from within the company (worked at company before becoming CEO)\n"
+            "- 'outsider': Hired from outside the company (first role at company is CEO)\n"
+            "- 'unknown': Cannot determine from available information"
+        )
+    )
     ceo_type: Optional[str] = Field(None, description="Type of CEO (founder, professional, interim, etc.)")
 
     # TENURE INFORMATION
@@ -39,23 +45,10 @@ class CEOProfile(BaseModel):
     tenure_years: Optional[float] = Field(None, description="Years as CEO")
     tenure_months: Optional[int] = Field(None, description="Total months as CEO")
 
-    # PERSONAL BACKGROUND
-    birth_year: Optional[int] = Field(None, description="Year of birth")
-    age: Optional[int] = Field(None, description="Current age or age at departure")
-    age_at_appointment: Optional[int] = Field(None, description="Age when appointed CEO")
-    nationality: Optional[str] = Field(None, description="Nationality/citizenship")
-    gender: Optional[str] = Field(None, description="Gender")
-    birthplace: Optional[str] = Field(None, description="Place of birth")
-
-    # EDUCATION
-    education_schools: Optional[List[str]] = Field(default_factory=list, description="List of schools attended")
-    education_degrees: Optional[List[str]] = Field(default_factory=list, description="List of degrees earned")
-    education_majors: Optional[List[str]] = Field(default_factory=list, description="List of academic majors")
-    mba_school: Optional[str] = Field(None, description="MBA school if applicable")
-
     # CAREER HISTORY
-    previous_companies: Optional[List[str]] = Field(default_factory=list, description="Previous companies worked at")
-    previous_positions: Optional[List[str]] = Field(default_factory=list, description="Previous job titles")
+    previous_company: Optional[str] = Field(None, description="Most recent previous company before current role")
+    previous_position: Optional[str] = Field(None, description="Most recent previous position/title before CEO")
+    initial_join_year: Optional[int] = Field(None, description="Year first joined the company in ANY role (YYYY)")
     years_at_company: Optional[int] = Field(None, description="Total years at current company")
     years_before_ceo: Optional[int] = Field(None, description="Years at company before becoming CEO")
     previous_ceo_experience: Optional[bool] = Field(None, description="Whether had CEO experience before")
@@ -71,19 +64,6 @@ class CEOProfile(BaseModel):
     departure_voluntary: Optional[bool] = Field(None, description="Whether departure was voluntary")
     successor_name: Optional[str] = Field(None, description="Name of successor")
     post_ceo_role: Optional[str] = Field(None, description="Role after CEO (if any)")
-
-    # COMPANY CONTEXT
-    industry: Optional[str] = Field(None, description="Industry/sector")
-    company_size: Optional[str] = Field(None, description="Company size category")
-    annual_revenue: Optional[float] = Field(None, description="Annual revenue in billions")
-    market_cap: Optional[float] = Field(None, description="Market capitalization in billions")
-    employee_count: Optional[int] = Field(None, description="Number of employees")
-    fortune_ranking: Optional[int] = Field(None, description="Fortune 500/1000 ranking")
-
-    # PERFORMANCE METRICS
-    stock_performance: Optional[str] = Field(None, description="Stock performance during tenure")
-    revenue_growth: Optional[float] = Field(None, description="Revenue growth percentage during tenure")
-    major_achievements: Optional[List[str]] = Field(default_factory=list, description="Major achievements as CEO")
 
     # DATA QUALITY & SOURCES
     data_completeness: Optional[str] = Field(None, description="Assessment of data completeness")
@@ -149,15 +129,9 @@ class CEOProfile(BaseModel):
                 "ceo_name": "Tim Cook",
                 "company_name": "Apple Inc.",
                 "ceo_title": "Chief Executive Officer",
-                "company_ticker": "AAPL",
                 "insider_outsider": "insider",
                 "appointment_date": "08/24/2011",
                 "departure_date": "incumbent",
-                "age": 63,
-                "nationality": "American",
-                "education_schools": ["Auburn University"],
-                "education_degrees": ["Bachelor of Science"],
-                "industry": "Technology",
                 "primary_sources": ["SEC filings", "Company website"]
             }
         }
