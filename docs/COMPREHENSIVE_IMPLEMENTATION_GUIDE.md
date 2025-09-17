@@ -19,7 +19,7 @@
 ## Executive Summary
 
 ### Purpose
-Automate the collection, verification, and extraction of comprehensive CEO information from multiple web sources using GPT-5 and the OpenAI Responses API. This system replaces manual research processes currently tracked in spreadsheets, extracting 40+ data points per CEO with intelligent data gathering, source attribution, and classification logic.
+Automate the collection, verification, and extraction of comprehensive CEO information from multiple web sources using GPT-5 and the OpenAI Responses API. This system replaces manual research processes currently tracked in spreadsheets, extracting 29 data points per CEO with intelligent data gathering, source attribution, and classification logic.
 
 ### Key Outcomes
 - Reduce research time from hours to <2 minutes per CEO
@@ -72,7 +72,7 @@ mypy = "^1.7.0"              # Type checking
 ### Business Requirements
 
 #### Data Coverage
-- Extract 40+ specific data points per CEO
+- Extract 29 specific data points per CEO
 - Achieve >80% field completeness rate
 - Maintain <5% error rate on classifications
 - Provide confidence scores for all extracted data
@@ -355,7 +355,7 @@ gpt_5_ceo_research/
 │   │
 │   ├── models/
 │   │   ├── __init__.py
-│   │   ├── ceo_profile.py       # Main data model (40+ fields)
+│   │   ├── ceo_profile.py       # Main data model (29 fields)
 │   │   ├── classification.py    # Classification results
 │   │   ├── source_data.py       # Source tracking
 │   │   └── validation_result.py # Validation outcomes
@@ -1078,7 +1078,7 @@ class ResearchOrchestrator:
 
 ## Data Models
 
-### CEO Profile Model (40+ Fields)
+### CEO Profile Model (29 Fields)
 ```python
 # src/models/ceo_profile.py
 from typing import Optional, List
@@ -1086,7 +1086,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, validator
 
 class CEOProfile(BaseModel):
-    """Complete CEO profile with 40+ data points."""
+    """Complete CEO profile with 29 data points."""
 
     # === Identification ===
     person_name: str = Field(..., description="CEO name in 'Last, First' format")

@@ -55,14 +55,14 @@
 ```
 
 ### 1.3 Data Models Implementation [Day 3-4]
-- [ ] Create `CEOProfile` model with all 40+ fields
+- [ ] Create `CEOProfile` model with all 29 fields
 - [ ] Implement field validators
 - [ ] Create `Classification`, `SourceData`, `ValidationResult` models
 - [ ] Add CSV/JSON serialization methods
 - [ ] Implement model factory methods
 
 **Success Metrics**:
-- All 40+ fields properly defined
+- All 29 fields properly defined
 - Validation catches invalid data
 - Serialization/deserialization works correctly
 - Date format validation enforces MM/DD/YYYY
@@ -472,7 +472,7 @@
 
 ### 6.3 End-to-End Testing [Week 5, Day 1]
 - [ ] Test complete pipeline with 10 known CEOs
-- [ ] Validate all 40+ fields extracted
+- [ ] Validate all 29 fields extracted
 - [ ] Compare against manual baseline
 - [ ] Test error scenarios
 - [ ] Performance benchmarking

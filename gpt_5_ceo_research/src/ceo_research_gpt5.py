@@ -173,7 +173,9 @@ def _extract_text_from_response(response) -> Optional[str]:
     """
     Extract text content from GPT-5 API response object.
 
-    Tries multiple access patterns as the response structure may vary.
+    Uses KISS principle - checks the correct locations based on web search usage.
+    When web search is enabled, text is at response.output[1].content[0].text
+    When web search is disabled, text is at response.output[0].content[0].text
 
     Args:
         response: The response object from GPT-5 API
@@ -182,34 +184,53 @@ def _extract_text_from_response(response) -> Optional[str]:
         str: The extracted text content or None if not found
     """
     try:
-        # Try different ways to access text content based on response structure
-        if hasattr(response, 'output_text'):
+        # Check if response has output structure (primary method for GPT-5)
+        if hasattr(response, 'output') and response.output:
+
+            # KISS: Check the LAST item first - it's usually the final response
+            # When web search is used, there are many reasoning/search pairs,
+            # with the actual response at the end
+            if len(response.output) > 0:
+                last_item = response.output[-1]
+
+                # Check if it's a ResponseOutputMessage with content
+                if hasattr(last_item, 'content') and last_item.content:
+                    if len(last_item.content) > 0:
+                        content_item = last_item.content[0]
+                        if hasattr(content_item, 'text'):
+                            text_content = content_item.text
+                            if text_content is not None:
+                                logger.debug(f"Extracting text via response.output[-1].content[0].text (last item)")
+                                return text_content
+
+            # Fallback: Try indices 1 and 0 for simpler responses
+            for output_index in [1, 0]:
+                if len(response.output) > output_index:
+                    output_item = response.output[output_index]
+                    if hasattr(output_item, 'content') and output_item.content:
+                        if len(output_item.content) > 0:
+                            content_item = output_item.content[0]
+                            if hasattr(content_item, 'text'):
+                                text_content = content_item.text
+                                if text_content is not None:
+                                    logger.debug(f"Extracting text via response.output[{output_index}].content[0].text")
+                                    return text_content
+
+        # Fallback: try direct output_text attribute
+        if hasattr(response, 'output_text') and response.output_text:
             logger.debug("Extracting text via response.output_text")
             return response.output_text
 
-        elif hasattr(response, 'text'):
-            if hasattr(response.text, 'value'):
-                logger.debug("Extracting text via response.text.value")
-                return response.text.value
-            elif hasattr(response.text, 'text'):
-                logger.debug("Extracting text via response.text.text")
-                return response.text.text
-            else:
-                logger.debug("Extracting text via str(response.text)")
-                return str(response.text)
-
-        elif hasattr(response, 'output'):
-            # Try nested structure response.output[0].content[0].text
-            if response.output and len(response.output) > 0:
-                if hasattr(response.output[0], 'content'):
-                    if response.output[0].content and len(response.output[0].content) > 0:
-                        if hasattr(response.output[0].content[0], 'text'):
-                            logger.debug("Extracting text via response.output[0].content[0].text")
-                            return response.output[0].content[0].text
-
-        # If all else fails, try converting response to string
-        logger.warning("Using fallback str(response) to extract text")
-        return str(response)
+        # Final fallback: log detailed structure for debugging
+        logger.error("Unable to extract text from response - no valid text content found")
+        logger.debug(f"Response type: {type(response)}")
+        if hasattr(response, 'output') and response.output:
+            logger.debug(f"Output length: {len(response.output)}")
+            for i, item in enumerate(response.output):
+                logger.debug(f"Output[{i}] type: {type(item)}, has content: {hasattr(item, 'content')}")
+                if hasattr(item, 'content') and item.content:
+                    logger.debug(f"Output[{i}].content length: {len(item.content)}")
+        return None
 
     except Exception as e:
         logger.error(f"Failed to extract text from response: {e}")

@@ -18,7 +18,7 @@ from typing import Optional, List
 from datetime import date
 
 class CEOProfile(BaseModel):
-    """All 40+ CEO fields in one clean model"""
+    """All 29 CEO fields in one clean model"""
 
     # Basic Information
     ceo_name: str = Field(description="Format: Last, First")
@@ -84,7 +84,7 @@ class CEOProfile(BaseModel):
     class Config:
         # This schema will be used for GPT-5 structured output
         json_schema_extra = {
-            "description": "CEO profile with 40+ data points",
+            "description": "CEO profile with 29 data points",
             "examples": [...]
         }
 ```
@@ -192,7 +192,7 @@ class CEOResearcher:
         sources: List[Dict]
     ) -> CEOProfile:
         """
-        ONE GPT-5 call to extract ALL 40+ fields using structured output
+        ONE GPT-5 call to extract ALL 29 fields using structured output
         This replaces ALL the specialized extractors
         """
 
@@ -209,7 +209,7 @@ class CEOResearcher:
         {source_text}
 
         Instructions:
-        - Extract all 40+ fields if the information is available
+        - Extract all 29 fields if the information is available
         - Use "unknown" or null for information not found in sources
         - For insider/outsider: reason through their career path carefully
         - For dates: convert to MM/DD/YYYY format when possible
@@ -553,13 +553,13 @@ That's it! No 10+ specialized tools, no complex orchestration, no phase manageme
 
 ## Implementation Order (Do This Today)
 
-1. **Hour 1**: Create CEOProfile model with all 40+ fields
+1. **Hour 1**: Create CEOProfile model with all 29 fields
 2. **Hour 2-3**: Build CEOResearcher with 4-step process
 3. **Hour 4**: Add web search integration (real searches only)
 4. **Hour 5**: Create CLI and test with 5 real CEOs
 5. **Hour 6**: Debug and refine based on real results
 
-**By end of day**: Working CEO research system with all 40+ fields!
+**By end of day**: Working CEO research system with all 29 fields!
 
 ---
 
