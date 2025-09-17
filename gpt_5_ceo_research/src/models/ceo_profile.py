@@ -43,7 +43,7 @@ class CEOProfile(BaseModel):
     start_date: Optional[str] = Field(None, description="Date started as CEO (MM/DD/YYYY)")
     departure_date: Optional[str] = Field(None, description="Date departed as CEO (MM/DD/YYYY or 'incumbent')")
     tenure_years: Optional[float] = Field(None, description="Years as CEO")
-    tenure_months: Optional[int] = Field(None, description="Total months as CEO")
+    tenure_months: Optional[float] = Field(None, description="Total months as CEO")
 
     # CAREER HISTORY
     previous_company: Optional[str] = Field(None, description="Most recent previous company before current role")
