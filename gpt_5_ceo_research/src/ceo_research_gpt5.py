@@ -110,7 +110,11 @@ INSTRUCTIONS:
 4. Return ONLY a valid JSON object with the specified structure
 5. Use "unknown" or null for fields where reliable data cannot be found
 6. Ensure all dates are in MM/DD/YYYY format
-7. For previous employment, provide ONLY the most recent company and position before the current CEO role
+7. CRITICAL RULES for previous_company and previous_position fields:
+   - For INSIDERS: previous_company should be null (they were already at the company)
+                   previous_position should be their last role AT THE SAME COMPANY before becoming CEO
+   - For OUTSIDERS: previous_company should be their last employer before joining as CEO
+                    previous_position should be their role at that previous external company
 8. For initial_join_year, find the YEAR (YYYY) when the person FIRST joined the company in ANY role (even as intern, analyst, etc.)
 9. Be thorough and accurate - this is for research purposes
 
@@ -137,8 +141,8 @@ Return a JSON object with these exact field names:
     "departure_date": "MM/DD/YYYY or 'incumbent'",
     "tenure_years": "integer or null",
     "tenure_months": "integer or null",
-    "previous_company": "most recent previous company name or null",
-    "previous_position": "most recent previous position/title or null",
+    "previous_company": "OUTSIDER: last external company; INSIDER: null (see rule 7)",
+    "previous_position": "OUTSIDER: role at previous company; INSIDER: last role at same company before CEO",
     "initial_join_year": "year (YYYY) when first joined company in ANY role or null",
     "years_at_company": "integer or null",
     "years_before_ceo": "integer or null",
