@@ -244,7 +244,71 @@ class CEOProfile(BaseModel):
             csv_rows.append(row)
         
         return csv_rows
-    
+
+    def to_csv_row_with_separate_sources(self, max_sources: int = 30) -> Dict[str, Any]:
+        """
+        Convert the model to a single CSV row with each source in a separate column.
+
+        Instead of combining sources in a semicolon-separated list, this method
+        creates individual columns for each source (source_1, source_2, etc.)
+
+        Args:
+            max_sources: Maximum number of source columns to create (default: 30)
+
+        Returns:
+            Dict[str, Any]: Single CSV row with separate source columns
+        """
+        # Get base data (excluding the list fields we'll expand)
+        data = self.model_dump()
+        csv_row = {}
+
+        # Process standard fields (excluding source fields we'll handle separately)
+        for key, value in data.items():
+            if key not in ['source_urls', 'primary_sources', 'alternative_verification_paths']:
+                if value is None:
+                    csv_row[key] = ''
+                elif isinstance(value, list):
+                    # Convert other lists to semicolon-separated strings
+                    csv_row[key] = '; '.join(str(item) for item in value)
+                else:
+                    csv_row[key] = value
+            elif key == 'alternative_verification_paths':
+                # Keep alternative_verification_paths as semicolon-separated
+                if value is None:
+                    csv_row[key] = ''
+                elif isinstance(value, list):
+                    csv_row[key] = '; '.join(str(item) for item in value)
+                else:
+                    csv_row[key] = value
+
+        # Collect all sources (just raw URLs and descriptions)
+        all_sources = []
+
+        # Add source_urls first
+        if data.get('source_urls'):
+            for url in data['source_urls']:
+                if url:  # Skip empty URLs
+                    all_sources.append(url)
+
+        # Add primary_sources (these are text descriptions)
+        if data.get('primary_sources'):
+            for source in data['primary_sources']:
+                if source:  # Skip empty sources
+                    all_sources.append(source)
+
+        # Add individual source columns (just raw sources, no metadata)
+        for i in range(1, max_sources + 1):
+            if i <= len(all_sources):
+                csv_row[f'source_{i}'] = all_sources[i-1]
+            else:
+                # Empty columns for unused source slots
+                csv_row[f'source_{i}'] = ''
+
+        # Add summary field
+        csv_row['total_sources'] = len(all_sources)
+
+        return csv_row
+
     def _classify_source_url(self, url: str) -> str:
         """
         Classify a source URL to provide better source descriptions.

@@ -308,31 +308,31 @@ async def _research_single_ceo(ceo_name: str, bank_name: str, method: str, reaso
 
 async def _export_to_batch_csv(profile, output_file: Path, verbose: bool):
     """Export profile to CSV in batch mode (append)."""
-    
+
     # Import here to avoid circular imports
     import csv
-    
+
     # Check if file exists for headers
     file_exists = output_file.exists()
-    
-    # Get CSV data with one row per source
-    csv_rows = profile.to_csv_rows_by_source()
-    
-    if verbose and len(csv_rows) > 1:
-        click.echo(f"   📊 Creating {len(csv_rows)} CSV rows (one per source)")
-    
+
+    # Get CSV data with separate source columns (one row per CEO)
+    csv_row = profile.to_csv_row_with_separate_sources(max_sources=30)
+
+    if verbose:
+        total_sources = csv_row.get('total_sources', 0)
+        click.echo(f"   📊 Creating single CSV row with {total_sources} sources in separate columns")
+
     # Write to CSV
-    if csv_rows:
+    if csv_row:
         with open(output_file, 'a', newline='', encoding='utf-8') as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=csv_rows[0].keys())
-            
+            writer = csv.DictWriter(csvfile, fieldnames=csv_row.keys())
+
             # Write header only if file is new
             if not file_exists:
                 writer.writeheader()
-            
-            # Write all rows (one per source)
-            for row in csv_rows:
-                writer.writerow(row)
+
+            # Write single row for this CEO
+            writer.writerow(csv_row)
 
 
 def _show_batch_summary(results: dict, output_file: Path):
@@ -369,7 +369,7 @@ def _show_batch_summary(results: dict, output_file: Path):
         try:
             with open(output_file, 'r', encoding='utf-8') as f:
                 row_count = sum(1 for line in f) - 1  # Subtract header
-            click.echo(f"   Rows: {row_count} (including per-source rows)")
+            click.echo(f"   Rows: {row_count} CEOs")
         except:
             pass
     
