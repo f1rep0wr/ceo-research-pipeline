@@ -80,7 +80,7 @@ SOURCE CITATION REQUIREMENTS:
 - Each URL should directly support the data you found
 - Include SEC filings, press releases, news articles, company websites
 - Format: ["https://www.sec.gov/...", "https://company.com/press-release/...", "https://news.site/article/..."]
-- MINIMUM 3 sources required for high-quality research"""
+- MINIMUM 3 sources are recommended for high-quality research"""
 
     @staticmethod
     def get_insider_career_details_prompt(ceo_name: str, company_name: str, basic_info: Dict) -> str:
@@ -182,7 +182,7 @@ CRITICAL SOURCE REQUIREMENTS:
 - Include direct URLs for ALL sources accessed  
 - EVERY previous company/role fact must have supporting source_urls
 - Minimum 2-3 sources for outsider career verification
-- Include LinkedIn, company websites, press releases, business publications
+- Include LinkedIn, company websites, press releases, business publications, SEC filings, anything you can find that is relevant
 - Format source_urls as: ["https://url1.com", "https://url2.com"]
 
 Focus on verification through multiple sources and include all relevant URLs."""
@@ -226,6 +226,58 @@ Return ONLY valid JSON:
 }}
 
 Look for official announcements, board minutes, and press coverage of transitions."""
+
+    @staticmethod
+    def get_unknown_career_details_prompt(ceo_name: str, company_name: str, basic_info: Dict) -> str:
+        """
+        Stage 2C: Career analysis for CEOs with UNKNOWN classification.
+
+        Used when Stage 1 cannot determine if CEO was insider or outsider.
+        Attempts to gather previous position and company information.
+        """
+
+        return f"""You are researching career background for {ceo_name} at {company_name}.
+
+CONTEXT: Classification as insider/outsider could not be determined from available sources.
+
+RESEARCH FOCUS: Try to find any available information about their career history, especially:
+- Their most recent position before becoming CEO
+- Previous company (if different from current)
+- Whether they worked at {company_name} before becoming CEO
+- Any previous CEO or executive experience
+
+Use web search to gather whatever career information is available:
+- LinkedIn profiles
+- Company announcements
+- News articles about the appointment
+- Business directories and databases
+- Industry publications
+- SEC filings
+
+Return ONLY valid JSON:
+
+{{
+    "previous_company": "last known company before CEO role or null",
+    "previous_position": "last known position/title or null",
+    "outsider_job_title": "title if came from outside or null",
+    "outsider_firm": "company if came from outside or null",
+    "was_ceo_of_other_firms": "true/false/null",
+    "was_other_executive_of_other_firms": "true/false/null",
+    "previous_ceo_experience": "true/false/null",
+    "years_at_company": "number if determinable or null",
+    "initial_join_year": "YYYY if determinable or null",
+    "career_path_notes": "any career history information found",
+    "source_urls": ["url1", "url2"],
+    "data_limitations": "explain what information could not be found",
+    "notes": "any relevant context about their background"
+}}
+
+IMPORTANT:
+- Provide whatever information you CAN find, even if incomplete
+- Use null for fields where data is not available
+- Include ALL source URLs accessed
+- Document what information could not be determined
+- Any partial information is better than no information"""
 
     @staticmethod
     def get_post_ceo_details_prompt(ceo_name: str, company_name: str, basic_info: Dict) -> str:
@@ -351,8 +403,8 @@ Return ONLY the JSON object with comprehensive source_urls."""
         Get prompt for specific research stage.
         
         Args:
-            stage: Research stage ('basic', 'insider_career', 'outsider_career', 
-                   'succession', 'post_ceo', 'comprehensive')
+            stage: Research stage ('basic', 'insider_career', 'outsider_career',
+                   'unknown_career', 'succession', 'post_ceo', 'comprehensive')
             ceo_name: CEO name
             company_name: Company name  
             basic_info: Results from basic info stage (for subsequent stages)
@@ -363,8 +415,9 @@ Return ONLY the JSON object with comprehensive source_urls."""
         
         prompts = {
             'basic': CEOResearchPrompts.get_basic_info_prompt,
-            'insider_career': CEOResearchPrompts.get_insider_career_details_prompt, 
+            'insider_career': CEOResearchPrompts.get_insider_career_details_prompt,
             'outsider_career': CEOResearchPrompts.get_outsider_career_details_prompt,
+            'unknown_career': CEOResearchPrompts.get_unknown_career_details_prompt,
             'succession': CEOResearchPrompts.get_succession_details_prompt,
             'post_ceo': CEOResearchPrompts.get_post_ceo_details_prompt,
             'comprehensive': CEOResearchPrompts.get_comprehensive_single_prompt
@@ -393,19 +446,19 @@ Return ONLY the JSON object with comprehensive source_urls."""
     @staticmethod
     def should_use_insider_or_outsider_career(basic_info: Dict) -> str:
         """
-        Determine whether to use insider or outsider career prompt based on classification.
-        
+        Determine whether to use insider, outsider, or unknown career prompt based on classification.
+
         Args:
             basic_info: Results from basic info stage
-            
+
         Returns:
-            'insider_career' or 'outsider_career' or 'skip' if unknown
+            'insider_career' or 'outsider_career' or 'unknown_career'
         """
         classification = basic_info.get('insider_outsider', '').lower()
-        
+
         if classification == 'insider':
             return 'insider_career'
-        elif classification == 'outsider': 
+        elif classification == 'outsider':
             return 'outsider_career'
         else:
-            return 'skip'  # Skip detailed career analysis if classification is unknown
+            return 'unknown_career'  # Use unknown career prompt to still try getting previous position/company

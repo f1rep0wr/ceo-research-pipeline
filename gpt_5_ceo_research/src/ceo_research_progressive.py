@@ -93,19 +93,18 @@ class ProgressiveCEOResearcher:
                 profile_data.update(basic_info)
                 logger.info(f"Basic research completed. Classification: {basic_info.get('insider_outsider', 'unknown')}")
             
-            # Stage 2: Career Details (conditional on classification)
+            # Stage 2: Career Details (based on classification - insider, outsider, or unknown)
             if 'career_details' in stages and basic_info:
                 career_stage = self.prompts.should_use_insider_or_outsider_career(basic_info)
-                if career_stage != 'skip':
-                    logger.info(f"Stage 2: Gathering {career_stage} details")
-                    career_info = await self._run_career_research(
-                        ceo_name, company_name, basic_info, career_stage, reasoning_effort
-                    )
-                    if career_info:
-                        profile_data.update(career_info)
-                        logger.info("Career research completed")
+                logger.info(f"Stage 2: Gathering {career_stage} details")
+                career_info = await self._run_career_research(
+                    ceo_name, company_name, basic_info, career_stage, reasoning_effort
+                )
+                if career_info:
+                    profile_data.update(career_info)
+                    logger.info("Career research completed")
                 else:
-                    logger.info("Stage 2: Skipping career details (classification unknown)")
+                    logger.info("Career research returned no data")
             
             # Stage 3: Succession Details
             if 'succession' in stages and basic_info:
