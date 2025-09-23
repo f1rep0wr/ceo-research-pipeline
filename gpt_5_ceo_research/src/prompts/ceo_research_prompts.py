@@ -97,10 +97,10 @@ CONTEXT: This person was promoted from within the company (worked there before b
 RESEARCH FOCUS: Find their exact career path within the company leading to CEO role.
 
 CRITICAL LOGIC for last_position_before_ceo:
-- If was Board Member before CEO → "Board Member"  
-- If was President before CEO → "President"
-- If was Chairman before CEO → "Chairman"
-- If was Other Executive before CEO → "Other Executive"
+- If was Board Member before CEO -> "Board Member"
+- If was President before CEO -> "President"
+- If was Chairman before CEO -> "Chairman"
+- If was Other Executive before CEO -> "Other Executive"
 
 Use web search to find detailed career history. Look for:
 - Internal promotions and role changes

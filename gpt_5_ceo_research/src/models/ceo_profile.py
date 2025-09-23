@@ -281,20 +281,17 @@ class CEOProfile(BaseModel):
                 else:
                     csv_row[key] = value
 
-        # Collect all sources (just raw URLs and descriptions)
+        # Collect all sources (only URLs, not text descriptions)
         all_sources = []
 
-        # Add source_urls first
+        # Add source_urls only - these are actual URLs
         if data.get('source_urls'):
             for url in data['source_urls']:
                 if url:  # Skip empty URLs
                     all_sources.append(url)
 
-        # Add primary_sources (these are text descriptions)
-        if data.get('primary_sources'):
-            for source in data['primary_sources']:
-                if source:  # Skip empty sources
-                    all_sources.append(source)
+        # Note: primary_sources are text descriptions and should NOT be included here
+        # They are already handled as a separate field above
 
         # Add individual source columns (just raw sources, no metadata)
         for i in range(1, max_sources + 1):

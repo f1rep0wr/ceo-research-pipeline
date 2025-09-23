@@ -93,10 +93,10 @@ def batch_research_ceo(input_file: str, output: str, method: str, reasoning_effo
             input_file, output, method, reasoning_effort, max_errors, delay, verbose, dry_run
         ))
     except KeyboardInterrupt:
-        click.echo("\n🛑 Batch processing interrupted by user.", err=True)
+        click.echo("\n[INTERRUPTED] Batch processing interrupted by user.", err=True)
         sys.exit(1)
     except Exception as e:
-        click.echo(f"💥 Critical error in batch processor: {e}", err=True)
+        click.echo(f"[CRITICAL ERROR] Critical error in batch processor: {e}", err=True)
         sys.exit(1)
 
 
@@ -116,14 +116,14 @@ async def _run_batch_research(
     start_time = time.time()
     
     # Parse input file
-    click.echo("📋 Parsing input file...")
+    click.echo("Parsing input file...")
     ceo_bank_pairs = _parse_input_file(input_file)
     
     if not ceo_bank_pairs:
-        click.echo("❌ No valid CEO/Bank pairs found in input file.")
+        click.echo("[ERROR] No valid CEO/Bank pairs found in input file.")
         return
     
-    click.echo(f"✅ Found {len(ceo_bank_pairs)} CEO/Bank pairs to process")
+    click.echo(f"Found {len(ceo_bank_pairs)} CEO/Bank pairs to process")
     
     if dry_run:
         _show_dry_run_preview(ceo_bank_pairs, method, reasoning_effort, output_path)
@@ -143,7 +143,7 @@ async def _run_batch_research(
     output_file = Path(output_path)
     output_file.parent.mkdir(parents=True, exist_ok=True)
     
-    click.echo(f"\n🚀 Starting batch research...")
+    click.echo(f"\nStarting batch research...")
     click.echo(f"   Method: {method}")
     click.echo(f"   Reasoning effort: {reasoning_effort}")
     click.echo(f"   Output: {output_file.absolute()}")
@@ -156,7 +156,7 @@ async def _run_batch_research(
         
         # Check if we should stop due to too many consecutive errors
         if results['consecutive_errors'] >= max_errors:
-            click.echo(f"\n🛑 Stopping: {max_errors} consecutive errors reached")
+            click.echo(f"\n[STOPPING] {max_errors} consecutive errors reached")
             break
         
         # Show progress
@@ -180,9 +180,9 @@ async def _run_batch_research(
             
             if verbose:
                 sources_count = len(profile.to_csv_rows_by_source()) if profile else 0
-                click.echo(f"   ✅ Success: {sources_count} sources, {profile.confidence_score:.2f} confidence")
+                click.echo(f"   [SUCCESS] {sources_count} sources, {profile.confidence_score:.2f} confidence")
             else:
-                click.echo("   ✅ Success")
+                click.echo("   [SUCCESS]")
             
         except Exception as e:
             # Handle error gracefully
@@ -193,9 +193,9 @@ async def _run_batch_research(
             logger.error(f"Error processing {ceo_name} at {bank_name}: {error_msg}")
             
             if verbose:
-                click.echo(f"   ❌ Error: {error_msg}")
+                click.echo(f"   [ERROR] {error_msg}")
             else:
-                click.echo(f"   ❌ Error (continuing...)")
+                click.echo(f"   [ERROR] (continuing...)")
         
         # Progress update
         if not verbose and i % 5 == 0:  # Show progress every 5 CEOs in non-verbose mode
@@ -206,7 +206,7 @@ async def _run_batch_research(
         # Delay between requests (be nice to APIs)
         if i < results['total'] and delay > 0:
             if verbose:
-                click.echo(f"   ⏸️  Waiting {delay}s...")
+                click.echo(f"   Waiting {delay}s...")
             await asyncio.sleep(delay)
     
     # Final summary
@@ -229,25 +229,25 @@ def _parse_input_file(input_file: str) -> List[Tuple[str, str]]:
                 
                 # Parse CEO|Bank format
                 if '|' not in line:
-                    click.echo(f"⚠️  Line {line_num}: Invalid format (missing |): {line}")
+                    click.echo(f"[WARNING] Line {line_num}: Invalid format (missing |): {line}")
                     continue
                 
                 parts = line.split('|')
                 if len(parts) != 2:
-                    click.echo(f"⚠️  Line {line_num}: Invalid format (expected CEO|Bank): {line}")
+                    click.echo(f"[WARNING] Line {line_num}: Invalid format (expected CEO|Bank): {line}")
                     continue
                 
                 ceo_name = parts[0].strip()
                 bank_name = parts[1].strip()
                 
                 if not ceo_name or not bank_name:
-                    click.echo(f"⚠️  Line {line_num}: Empty CEO or Bank name: {line}")
+                    click.echo(f"[WARNING] Line {line_num}: Empty CEO or Bank name: {line}")
                     continue
                 
                 ceo_bank_pairs.append((ceo_name, bank_name))
     
     except Exception as e:
-        click.echo(f"❌ Error reading input file: {e}")
+        click.echo(f"[ERROR] Error reading input file: {e}")
         return []
     
     return ceo_bank_pairs
@@ -277,7 +277,7 @@ def _show_dry_run_preview(ceo_bank_pairs: List[Tuple[str, str]], method: str, re
     click.echo(f"  ~{time_per_ceo} minutes per CEO ({method} method)")
     click.echo(f"  ~{total_minutes:.1f} total minutes for {len(ceo_bank_pairs)} CEOs")
     
-    click.echo(f"\n🚀 Run without --dry-run to start processing")
+    click.echo(f"\nRun without --dry-run to start processing")
 
 
 async def _research_single_ceo(ceo_name: str, bank_name: str, method: str, reasoning_effort: str, verbose: bool):
@@ -320,7 +320,7 @@ async def _export_to_batch_csv(profile, output_file: Path, verbose: bool):
 
     if verbose:
         total_sources = csv_row.get('total_sources', 0)
-        click.echo(f"   📊 Creating single CSV row with {total_sources} sources in separate columns")
+        click.echo(f"   Creating single CSV row with {total_sources} sources in separate columns")
 
     # Write to CSV
     if csv_row:
@@ -345,13 +345,13 @@ def _show_batch_summary(results: dict, output_file: Path):
     click.echo("BATCH PROCESSING COMPLETED")
     click.echo("="*60)
     
-    click.echo(f"📊 Results Summary:")
+    click.echo(f"Results Summary:")
     click.echo(f"   Total CEOs: {results['total']}")
-    click.echo(f"   ✅ Completed: {results['completed']}")
-    click.echo(f"   ❌ Errors: {results['errors']}")
-    click.echo(f"   📈 Success Rate: {(results['completed'] / results['total']) * 100:.1f}%")
+    click.echo(f"   Completed: {results['completed']}")
+    click.echo(f"   Errors: {results['errors']}")
+    click.echo(f"   Success Rate: {(results['completed'] / results['total']) * 100:.1f}%")
     
-    click.echo(f"\n⏱️  Timing:")
+    click.echo(f"\nTiming:")
     click.echo(f"   Total Time: {elapsed_minutes:.1f} minutes")
     if results['completed'] > 0:
         avg_time = elapsed_time / results['completed']
@@ -359,7 +359,7 @@ def _show_batch_summary(results: dict, output_file: Path):
         click.echo(f"   Avg per CEO: {avg_time:.1f} seconds")
         click.echo(f"   Processing Rate: {rate:.1f} CEOs/minute")
     
-    click.echo(f"\n📄 Output:")
+    click.echo(f"\nOutput:")
     click.echo(f"   File: {output_file.absolute()}")
     if output_file.exists():
         file_size = output_file.stat().st_size / 1024  # KB
@@ -374,14 +374,14 @@ def _show_batch_summary(results: dict, output_file: Path):
             pass
     
     if results['errors'] > 0:
-        click.echo(f"\n⚠️  Note: {results['errors']} CEOs had errors and were skipped")
+        click.echo(f"\n[NOTE] {results['errors']} CEOs had errors and were skipped")
         click.echo("   Check logs for detailed error information")
     
     if results['completed'] > 0:
-        click.echo(f"\n🎉 Batch processing completed successfully!")
+        click.echo(f"\nBatch processing completed successfully!")
         click.echo(f"   Ready for analysis: {output_file.name}")
     else:
-        click.echo(f"\n❌ No CEOs were successfully processed")
+        click.echo(f"\n[ERROR] No CEOs were successfully processed")
 
 
 if __name__ == '__main__':

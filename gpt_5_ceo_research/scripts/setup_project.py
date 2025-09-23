@@ -15,26 +15,26 @@ def create_directory_structure():
 
     Creates the following structure:
     gpt_5_ceo_research/
-    ├── src/
-    │   ├── __init__.py
-    │   ├── config/
-    │   │   ├── __init__.py
-    │   │   ├── settings.py
-    │   │   └── constants.py
-    │   ├── clients/
-    │   │   ├── __init__.py
-    │   │   └── gpt5_client.py
-    │   └── utils/
-    │       ├── __init__.py
-    │       └── logger.py
-    ├── tests/
-    │   ├── __init__.py
-    │   ├── conftest.py
-    │   └── test_initialization.py
-    ├── scripts/
-    │   └── setup_project.py
-    ├── docs/
-    ├── docker/
+    +-- src/
+    |   +-- __init__.py
+    |   +-- config/
+    |   |   +-- __init__.py
+    |   |   +-- settings.py
+    |   |   +-- constants.py
+    |   +-- clients/
+    |   |   +-- __init__.py
+    |   |   +-- gpt5_client.py
+    |   +-- utils/
+    |       +-- __init__.py
+    |       +-- logger.py
+    +-- tests/
+    |   +-- __init__.py
+    |   +-- conftest.py
+    |   +-- test_initialization.py
+    +-- scripts/
+    |   +-- setup_project.py
+    +-- docs/
+    +-- docker/
 
     Returns:
         bool: True if all directories were created successfully, False otherwise.

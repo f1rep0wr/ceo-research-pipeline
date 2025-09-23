@@ -287,10 +287,10 @@ def _report_enhanced_verbose_results(profile, output_file: Path, method: str) ->
     
     # Conflicts or issues
     if hasattr(profile, 'conflicting_data_notes') and profile.conflicting_data_notes:
-        click.echo(f"⚠️  Data Conflicts: {profile.conflicting_data_notes}")
+        click.echo(f"[WARNING] Data Conflicts: {profile.conflicting_data_notes}")
     
     if hasattr(profile, 'source_accessibility_issues') and profile.source_accessibility_issues:
-        click.echo(f"⚠️  Source Issues: {profile.source_accessibility_issues}")
+        click.echo(f"[WARNING] Source Issues: {profile.source_accessibility_issues}")
     
     # Output location
     click.echo("\\n" + "-"*40)
@@ -335,10 +335,10 @@ def _report_enhanced_simple_results(profile, output_file: Path, method: str) -> 
     
     # Warnings
     if hasattr(profile, 'conflicting_data_notes') and profile.conflicting_data_notes:
-        click.echo(f"⚠️  Warning: Data conflicts detected")
+        click.echo(f"[WARNING] Data conflicts detected")
     
     if profile.confidence_score and profile.confidence_score < 0.5:
-        click.echo(f"⚠️  Warning: Low confidence score ({profile.confidence_score:.2f})")
+        click.echo(f"[WARNING] Low confidence score ({profile.confidence_score:.2f})")
 
 
 def _show_available_methods() -> None:
@@ -349,29 +349,29 @@ def _show_available_methods() -> None:
     click.echo("="*60)
     
     click.echo("\\n1. PROGRESSIVE (Recommended)")
-    click.echo("   • Multiple focused research stages")
-    click.echo("   • Highest data quality and detail")
-    click.echo("   • Better handling of complex cases")
-    click.echo("   • Stages: basic → career_details → succession → post_ceo")
-    click.echo("   • Usage: --method progressive")
+    click.echo("   - Multiple focused research stages")
+    click.echo("   - Highest data quality and detail")
+    click.echo("   - Better handling of complex cases")
+    click.echo("   - Stages: basic -> career_details -> succession -> post_ceo")
+    click.echo("   - Usage: --method progressive")
     
     click.echo("\\n2. COMPREHENSIVE")
-    click.echo("   • Single enhanced prompt")
-    click.echo("   • Faster than progressive")
-    click.echo("   • Good balance of speed and quality")
-    click.echo("   • Usage: --method comprehensive")
+    click.echo("   - Single enhanced prompt")
+    click.echo("   - Faster than progressive")
+    click.echo("   - Good balance of speed and quality")
+    click.echo("   - Usage: --method comprehensive")
     
     click.echo("\\n3. LEGACY")
-    click.echo("   • Original implementation")
-    click.echo("   • Maintained for compatibility")
-    click.echo("   • Basic feature set")
-    click.echo("   • Usage: --method legacy")
+    click.echo("   - Original implementation")
+    click.echo("   - Maintained for compatibility")
+    click.echo("   - Basic feature set")
+    click.echo("   - Usage: --method legacy")
     
     click.echo("\\nAVAILABLE STAGES (for progressive method):")
-    click.echo("   • basic: Core information and insider/outsider classification")
-    click.echo("   • career_details: Detailed career progression (insider or outsider specific)")
-    click.echo("   • succession: Transition circumstances and board relationships")
-    click.echo("   • post_ceo: Post-CEO career and data verification")
+    click.echo("   - basic: Core information and insider/outsider classification")
+    click.echo("   - career_details: Detailed career progression (insider or outsider specific)")
+    click.echo("   - succession: Transition circumstances and board relationships")
+    click.echo("   - post_ceo: Post-CEO career and data verification")
     
     click.echo("\\nEXAMPLES:")
     click.echo('   python research_ceo_enhanced.py "CEO Name" "Company" --method progressive')

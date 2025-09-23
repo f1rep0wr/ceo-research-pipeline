@@ -57,9 +57,9 @@ Made prompts more explicit about expected data types:
 ## Validation Tests
 
 Created `test_data_validation.py` to verify:
-✅ Decimal years values are accepted  
-✅ Data preprocessing works correctly
-✅ Edge cases (null strings, empty values, mixed types) are handled
+[PASS] Decimal years values are accepted  
+[PASS] Data preprocessing works correctly
+[PASS] Edge cases (null strings, empty values, mixed types) are handled
 
 ## Impact
 

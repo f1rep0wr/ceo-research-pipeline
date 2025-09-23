@@ -11,7 +11,7 @@ The CEO research system now creates **one CSV row per source**, making it much e
 - All sources listed in `source_urls` field as: "url1; url2; url3"
 - Hard to analyze individual sources
 
-### After (New Method) ✅
+### After (New Method) [OK]
 - 1 CEO = Multiple CSV rows (one per source)
 - Each row contains:
   - **All CEO profile data** (name, classification, tenure, etc.)
@@ -54,10 +54,10 @@ The system automatically classifies sources into categories:
 ## Real-World Example
 
 **Brian Moynihan Research Results:**
-- ✅ **15 sources found**
-- ✅ **15 CSV rows created** (one per source)
-- ✅ **Source types identified**: SEC filings, company website, CNBC interview, Reuters article
-- ✅ **All CEO data preserved** in each row
+- [OK] **15 sources found**
+- [OK] **15 CSV rows created** (one per source)
+- [OK] **Source types identified**: SEC filings, company website, CNBC interview, Reuters article
+- [OK] **All CEO data preserved** in each row
 
 ## Benefits for Analysis
 
@@ -101,10 +101,10 @@ python research_ceo_enhanced.py "CEO Name" "Bank Name" --method progressive --ve
 
 ## Backward Compatibility
 
-- ✅ **All existing fields preserved**
-- ✅ **Same command-line interface**
-- ✅ **Headers automatically created**
-- ✅ **Same file naming and output options**
+- [OK] **All existing fields preserved**
+- [OK] **Same command-line interface**
+- [OK] **Headers automatically created**
+- [OK] **Same file naming and output options**
 
 The only change: **More rows per CEO**, which provides **better source analysis** capabilities.
 
