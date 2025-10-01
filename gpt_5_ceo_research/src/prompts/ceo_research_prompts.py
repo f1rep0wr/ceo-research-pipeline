@@ -124,7 +124,7 @@ Return ONLY valid JSON:
     "joined_as_executive": "true/false/null",
     "joined_from_early_career": "true/false/null",
     "previous_position": "last internal role before CEO",
-    "previous_company": "null (insider was already at company)",
+    "previous_company": "most recent external employer before first joining the bank (use null only if their career began at this bank)",
     "career_timeline_verified": "true/false",
     "timeline_conflicts": "any conflicts found or null",
     "source_urls": ["url1", "url2"],
@@ -204,8 +204,8 @@ Use web search to find information about:
 - Was succession planned or sudden?  
 - Board connections or relationships
 - Interim periods or transitions
-- Departure circumstances (if applicable)
-- Reason for leaving (if applicable)
+- Departure circumstances (only if a departure has already occurred)
+- Reason for leaving (include only when confirmed)
 
 Return ONLY valid JSON:
 
@@ -217,14 +217,15 @@ Return ONLY valid JSON:
     "interim_period": "true/false/null",
     "board_connection": "relationship to board or null",
     "departure_reason": "reason for leaving or null",
-    "departure_voluntary": "true/false/null", 
-    "was_forced_out": "true/false/null",
-    "retirement_status": "true/false/null",
+    "departure_voluntary": "true/false/null",  # set true only if departure already occurred
+    "was_forced_out": "true/false/null",  # mark true only with confirmed involuntary departure
+    "retirement_status": "true/false/null",  # mark true only when retirement is formally announced
     "source_urls": ["url1", "url2"],
     "conflicting_data_notes": "any conflicting information found",
     "notes": "succession circumstances and context"
 }}
 
+Only populate departure-related fields when you find definitive evidence that the CEO has already left (e.g., regulatory order in effect, resignation filed, successor named).
 Look for official announcements, board minutes, and press coverage of transitions."""
 
     @staticmethod
@@ -298,6 +299,11 @@ Use web search to find:
 - Whether had job lined up
 - Geographic moves for next role
 
+KEEP IT SHORT:
+- Provide each field as a concise phrase (no sentences or paragraphs)
+- For post_ceo_role, give the job title only (no more than 60 characters)
+- For next_company, give the company name only
+
 Also verify and assess data quality:
 - Source accessibility issues
 - Data precision levels  
@@ -306,8 +312,8 @@ Also verify and assess data quality:
 Return ONLY valid JSON:
 
 {{
-    "post_ceo_role": "next role after CEO or null",
-    "next_company": "company of next role or null", 
+    "post_ceo_role": "concise job title only (max 60 chars, no sentences) or null",
+    "next_company": "company name only or null", 
     "director_of_some_company": "director positions or null",
     "no_real_job": "true/false/null",
     "age_at_departure": "age when left CEO role or null",
@@ -318,7 +324,7 @@ Return ONLY valid JSON:
     "data_precision_level": "exact/month-year/year-only",
     "timeline_conflicts": "timeline inconsistencies or null", 
     "source_urls": ["url1", "url2"],
-    "notes": "post-CEO activities and data quality assessment"
+    "notes": "brief data-quality flags (short phrase) or null"
 }}
 
 Priority: Accuracy over completeness. Mark uncertain information clearly."""
@@ -454,7 +460,27 @@ Return ONLY the JSON object with comprehensive source_urls."""
         Returns:
             'insider_career' or 'outsider_career' or 'unknown_career'
         """
-        classification = basic_info.get('insider_outsider', '').lower()
+        raw_value = basic_info.get('insider_outsider', '')
+        classification = (raw_value or '').strip().lower()
+        classification = classification.replace('-', ' ')
+
+        normalization_map = {
+            'external hire': 'outsider',
+            'external': 'outsider',
+            'outside hire': 'outsider',
+            'outside': 'outsider',
+            'outsider (external hire)': 'outsider',
+            'external (outsider)': 'outsider',
+            'internal hire': 'insider',
+            'internal': 'insider',
+            'inside hire': 'insider',
+            'insider (internal hire)': 'insider',
+        }
+
+        classification = normalization_map.get(classification, classification)
+        if classification not in ('insider', 'outsider') and classification:
+            primary_token = classification.split(' ', 1)[0]
+            classification = normalization_map.get(primary_token, primary_token)
 
         if classification == 'insider':
             return 'insider_career'
@@ -462,3 +488,4 @@ Return ONLY the JSON object with comprehensive source_urls."""
             return 'outsider_career'
         else:
             return 'unknown_career'  # Use unknown career prompt to still try getting previous position/company
+

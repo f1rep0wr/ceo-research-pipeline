@@ -22,9 +22,11 @@ import asyncio
 import click
 import sys
 import time
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import List, Tuple, Optional
+from contextlib import asynccontextmanager
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent))
@@ -35,6 +37,31 @@ from src.ceo_research_progressive import (
 )
 from src.ceo_research_gpt5 import research_ceo_with_websearch  # Legacy
 from src.utils.logger import get_logger
+
+
+@asynccontextmanager
+async def _locked_output_file(target: Path, timeout: float = 30.0, poll: float = 0.2):
+    """Simple cross-process lock using a temporary .lock file."""
+    lock_path = target.with_suffix(target.suffix + '.lock')
+    deadline = time.monotonic() + timeout
+
+    while True:
+        try:
+            fd = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            break
+        except FileExistsError:
+            if time.monotonic() >= deadline:
+                raise TimeoutError(f'Timed out waiting for lock on {target}')
+            await asyncio.sleep(poll)
+
+    try:
+        yield
+    finally:
+        try:
+            os.remove(lock_path)
+        except FileNotFoundError:
+            pass
 
 
 @click.command()
@@ -312,9 +339,6 @@ async def _export_to_batch_csv(profile, output_file: Path, verbose: bool):
     # Import here to avoid circular imports
     import csv
 
-    # Check if file exists for headers
-    file_exists = output_file.exists()
-
     # Get CSV data with separate source columns (one row per CEO)
     csv_row = profile.to_csv_row_with_separate_sources(max_sources=30)
 
@@ -322,16 +346,17 @@ async def _export_to_batch_csv(profile, output_file: Path, verbose: bool):
         total_sources = csv_row.get('total_sources', 0)
         click.echo(f"   Creating single CSV row with {total_sources} sources in separate columns")
 
-    # Write to CSV
-    if csv_row:
+    if not csv_row:
+        return
+
+    async with _locked_output_file(output_file):
+        file_exists = output_file.exists()
         with open(output_file, 'a', newline='', encoding='utf-8') as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=csv_row.keys())
 
-            # Write header only if file is new
             if not file_exists:
                 writer.writeheader()
 
-            # Write single row for this CEO
             writer.writerow(csv_row)
 
 

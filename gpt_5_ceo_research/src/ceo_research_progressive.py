@@ -17,7 +17,9 @@ Each stage can be run independently, and results are merged progressively.
 import json
 import asyncio
 import logging
+import os
 from typing import Dict, Any, Optional, List
+from urllib.parse import urlparse, unquote
 from datetime import datetime
 
 from src.clients.gpt5_client import GPT5ResponsesClient
@@ -90,7 +92,7 @@ class ProgressiveCEOResearcher:
             if 'basic' in stages:
                 logger.info("Stage 1: Gathering basic information and classification")
                 basic_info = await self._run_basic_research(ceo_name, company_name, reasoning_effort)
-                profile_data.update(basic_info)
+                self._merge_profile_data(profile_data, basic_info)
                 logger.info(f"Basic research completed. Classification: {basic_info.get('insider_outsider', 'unknown')}")
             
             # Stage 2: Career Details (based on classification - insider, outsider, or unknown)
@@ -101,7 +103,7 @@ class ProgressiveCEOResearcher:
                     ceo_name, company_name, basic_info, career_stage, reasoning_effort
                 )
                 if career_info:
-                    profile_data.update(career_info)
+                    self._merge_profile_data(profile_data, career_info)
                     logger.info("Career research completed")
                 else:
                     logger.info("Career research returned no data")
@@ -113,20 +115,36 @@ class ProgressiveCEOResearcher:
                     ceo_name, company_name, basic_info, reasoning_effort
                 )
                 if succession_info:
-                    profile_data.update(succession_info)
+                    self._merge_profile_data(profile_data, succession_info)
                     logger.info("Succession research completed")
             
             # Stage 4: Post-CEO Details
             if 'post_ceo' in stages and basic_info:
-                logger.info("Stage 4: Gathering post-CEO career and verification")
-                post_ceo_info = await self._run_post_ceo_research(
-                    ceo_name, company_name, basic_info, reasoning_effort
-                )
-                if post_ceo_info:
-                    profile_data.update(post_ceo_info)
-                    logger.info("Post-CEO research completed")
+                departure_value = profile_data.get("departure_date") or basic_info.get("departure_date")
+                successor_name = profile_data.get("successor_name") or basic_info.get("successor_name")
+
+                has_departed = False
+                if departure_value:
+                    normalized_departure = str(departure_value).strip().lower()
+                    if normalized_departure not in {"", "incumbent", "current", "present", "ongoing", "now"}:
+                        has_departed = True
+
+                if not has_departed and successor_name and str(successor_name).strip():
+                    has_departed = True
+
+                if not has_departed:
+                    logger.info("Skipping post-CEO research: CEO appears to remain in role")
+                else:
+                    logger.info("Stage 4: Gathering post-CEO career and verification")
+                    post_ceo_info = await self._run_post_ceo_research(
+                        ceo_name, company_name, basic_info, reasoning_effort
+                    )
+                    if post_ceo_info:
+                        self._merge_profile_data(profile_data, post_ceo_info)
+                        logger.info("Post-CEO research completed")
                     
             # Final assessment
+            self._clean_source_lists(profile_data, ceo_name, company_name)
             self._assess_final_data_quality(profile_data)
             
             # Create final profile
@@ -400,6 +418,7 @@ class ProgressiveCEOResearcher:
             
             # Preprocess data to handle common type issues
             data = self._preprocess_data_types(data)
+            self._clean_source_lists(data, ceo_name, company_name)
             
             return data
             
@@ -492,6 +511,186 @@ class ProgressiveCEOResearcher:
                     data[field] = [str(value)] if value else []
         
         return data
+
+
+    def _merge_profile_data(self, base: Dict[str, Any], new_data: Optional[Dict[str, Any]]) -> None:
+        """Merge stage data into the profile without losing previously validated values."""
+        if not new_data:
+            return
+
+        list_fields = {'source_urls', 'primary_sources', 'alternative_verification_paths'}
+        for key, value in new_data.items():
+            if key in list_fields:
+                base[key] = self._merge_list_field(base.get(key), value)
+            elif key == 'notes':
+                base['notes'] = self._merge_notes(base.get('notes'), value)
+            elif value not in (None, '', [], {}):
+                base[key] = value
+
+    def _merge_list_field(self, current_values, new_values) -> List[str]:
+        combined = self._normalize_to_list(current_values) + self._normalize_to_list(new_values)
+        if not combined:
+            return []
+
+        merged: List[str] = []
+        seen = set()
+        for item in combined:
+            if item is None:
+                continue
+            if isinstance(item, str):
+                cleaned = item.strip()
+                if not cleaned:
+                    continue
+                dedupe_key = cleaned.lower()
+            else:
+                cleaned = item
+                dedupe_key = str(item)
+
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            merged.append(cleaned)
+
+        return merged
+
+    def _normalize_to_list(self, value) -> List:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        if isinstance(value, str):
+            return [value]
+
+        try:
+            return list(value)
+        except TypeError:
+            return [value]
+
+    def _merge_notes(self, existing, new_value):
+        notes = []
+        for note in (existing, new_value):
+            if isinstance(note, str):
+                cleaned = note.strip()
+                if cleaned:
+                    notes.append(cleaned)
+
+        if not notes:
+            return existing if existing is not None else new_value
+
+        deduped = []
+        seen = set()
+        for note in notes:
+            key = note.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(note)
+
+        return ' | '.join(deduped)
+
+    def _clean_source_lists(self, data: Dict[str, Any], ceo_name: str, company_name: str) -> None:
+        """Remove low-value or duplicate sources while preserving verifiable links."""
+        if 'source_urls' in data:
+            data['source_urls'] = self._filter_source_urls(
+                data.get('source_urls'),
+                ceo_name,
+                company_name
+            )
+        if 'primary_sources' in data:
+            data['primary_sources'] = self._deduplicate_strings(data.get('primary_sources'))
+        if 'alternative_verification_paths' in data:
+            data['alternative_verification_paths'] = self._deduplicate_strings(
+                data.get('alternative_verification_paths')
+            )
+
+    def _filter_source_urls(self, urls, ceo_name: str, company_name: str) -> List[str]:
+        url_list = self._normalize_to_list(urls)
+        if not url_list:
+            return []
+
+        ceo_tokens = [token.lower() for token in ceo_name.split() if token]
+        company_tokens = [token.lower() for token in company_name.split() if token]
+        allow_without_tokens = ('sec.gov', 'occ.treas.gov', 'fdic.gov', 'treasury.gov', 'frbservices.org')
+
+        cleaned_urls: List[str] = []
+        seen = set()
+
+        for raw_url in url_list:
+            if not isinstance(raw_url, str):
+                continue
+
+            url = raw_url.strip()
+            if not url:
+                continue
+
+            parsed = urlparse(url)
+            if parsed.scheme not in ('http', 'https'):
+                continue
+            if not parsed.netloc:
+                continue
+
+            domain = parsed.netloc.lower()
+
+            if any(bad in domain for bad in ('google.', 'bing.com', 'duckduckgo.', 'yahoo.com', 'search.aol.com')):
+                continue
+
+            path_lower = (parsed.path or '').lower()
+            query_lower = (parsed.query or '').lower()
+            if 'search' in path_lower or 'search=' in query_lower:
+                continue
+
+            normalized_path = parsed.path.strip('/')
+            if not normalized_path and not parsed.query:
+                if not any(domain.endswith(allowed) for allowed in allow_without_tokens):
+                    continue
+
+            descriptor = unquote(f"{parsed.path} {parsed.query}").lower()
+            has_name = any(token in descriptor for token in ceo_tokens)
+            has_company = any(token in descriptor for token in company_tokens)
+            keywords = ('press', 'article', 'news', 'leadership', 'management', 'ceo', 'executive',
+                        'investor', 'filing', 'proxy', 'succession', 'board', 'release', 'appointment')
+            has_keyword = any(keyword in descriptor for keyword in keywords)
+            extension = os.path.splitext(parsed.path)[1].lower()
+
+            if not (has_name or has_company or has_keyword or extension in ('.pdf', '.htm', '.html', '.txt')):
+                if not any(domain.endswith(allowed) for allowed in allow_without_tokens):
+                    continue
+
+            normalized = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+            if parsed.query:
+                normalized += f"?{parsed.query}"
+
+            normalized = normalized.split('#', 1)[0]
+
+            dedupe_key = normalized.lower()
+            if dedupe_key in seen:
+                continue
+            seen.add(dedupe_key)
+            cleaned_urls.append(normalized)
+
+        return cleaned_urls
+
+    def _deduplicate_strings(self, values) -> List[str]:
+        items = self._normalize_to_list(values)
+        if not items:
+            return []
+
+        deduped: List[str] = []
+        seen = set()
+        for item in items:
+            if not isinstance(item, str):
+                continue
+            cleaned = item.strip()
+            if len(cleaned) < 3:
+                continue
+            key = cleaned.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            deduped.append(cleaned)
+
+        return deduped
+
 
     def _assess_final_data_quality(self, profile_data: Dict[str, Any]) -> None:
         """Assess and update final data quality metrics."""
