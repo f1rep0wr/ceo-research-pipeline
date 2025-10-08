@@ -105,6 +105,7 @@ class CEOProfile(BaseModel):
     last_updated: Optional[str] = Field(None, description="Last update date")
     confidence_score: Optional[float] = Field(None, description="Confidence in data accuracy (0-1)")
     notes: Optional[str] = Field(None, description="Additional notes or caveats")
+    why_incorrect: Optional[str] = Field(None, description="LLM summary of hard-to-verify fields")
 
     # ENHANCED SOURCE TRACKING
     source_urls: Optional[List[str]] = Field(default_factory=list, description="Direct URLs to sources accessed")

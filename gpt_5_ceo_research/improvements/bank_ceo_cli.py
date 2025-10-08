@@ -48,18 +48,15 @@ async def _locked_dataset_file(target: Path, timeout: float = LOCK_TIMEOUT, poll
             pass
 
 
-async def _apply_updates_with_lock(*, input_path: Path, output_path: Path, updates: List[Tuple[int, BankCEOProfile]]) -> None:
-    if not updates:
-        return
+async def _apply_update_with_lock(
+    *, input_path: Path, output_path: Path, update: Tuple[int, BankCEOProfile]
+) -> None:
+    """Write a single profile update while respecting the shared file lock."""
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
     async with _locked_dataset_file(output_path):
-        source_path = output_path if output_path.exists() else input_path
-        dataset = data_utils.load_project_dataset(source_path)
-        for keyid, profile in updates:
-            dataset.update_profile(keyid, profile)
-        data_utils.write_project_dataset(dataset, output_path)
+        data_utils.apply_incremental_update(input_path, output_path, update)
 
     print(f'Updated dataset written to {output_path}')
 
@@ -166,7 +163,7 @@ async def _run_update(args: argparse.Namespace) -> None:
         return
 
     researcher = ProgressiveCEOResearcher()
-    pending_updates: List[Tuple[int, BankCEOProfile]] = []
+    updated_ids: List[int] = []
     skipped: List[int] = []
 
     for keyid in targets:
@@ -182,21 +179,22 @@ async def _run_update(args: argparse.Namespace) -> None:
             reasoning_effort=args.reasoning,
         )
         updated = from_ceo_profile(ceo_result, existing=profile)
-        pending_updates.append((keyid, updated))
+        dataset.update_profile(keyid, updated)
+        await _apply_update_with_lock(
+            input_path=input_path,
+            output_path=output_path,
+            update=(keyid, updated),
+        )
+        updated_ids.append(keyid)
 
-    if not pending_updates:
+    if not updated_ids:
         if skipped:
             print(f"Skipped {len(skipped)} KEYIDs due to missing CEO/company name.")
         print("No updates were generated; nothing to write.")
         return
 
-    await _apply_updates_with_lock(
-        input_path=input_path,
-        output_path=output_path,
-        updates=pending_updates,
-    )
 
-    summary_parts = [f"Updated {len(pending_updates)} record(s)."]
+    summary_parts = [f"Updated {len(updated_ids)} record(s)."]
     if skipped:
         summary_parts.append(f"Skipped {len(skipped)} due to missing CEO/company name.")
     print(" ".join(summary_parts))

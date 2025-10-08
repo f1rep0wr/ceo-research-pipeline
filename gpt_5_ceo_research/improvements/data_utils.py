@@ -82,8 +82,23 @@ def write_project_dataset(dataset: ProjectDataset, path: Path) -> None:
         writer.writerows(rows)
 
 
+
+def apply_incremental_update(input_path: Path, output_path: Path, update: Tuple[int, BankCEOProfile]) -> None:
+    """Persist a single profile update to the dataset CSV using simple upsert logic."""
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    source_path = output_path if output_path.exists() else input_path
+    dataset = load_project_dataset(source_path)
+
+    keyid, profile = update
+    dataset.update_profile(keyid, profile)
+
+    write_project_dataset(dataset, output_path)
+
 __all__ = [
     "ProjectDataset",
     "load_project_dataset",
     "write_project_dataset",
+    "apply_incremental_update",
 ]

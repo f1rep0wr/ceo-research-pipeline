@@ -30,6 +30,16 @@ from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
+LLM_GAP_HINTS = (
+    "not enough information",
+    "insufficient",
+    "unable to",
+    "no data",
+    "not available",
+    "unknown",
+)
+
+
 
 class ProgressiveCEOResearcher:
     """
@@ -216,6 +226,7 @@ class ProgressiveCEOResearcher:
                 raise ValueError("No text content found in GPT-5 response")
                 
             profile_data = self._parse_json_response(text_content, ceo_name, company_name)
+            self._log_llm_feedback("comprehensive", profile_data)
             
             # Create profile with better error handling
             try:
@@ -259,7 +270,9 @@ class ProgressiveCEOResearcher:
         if not text_content:
             raise ValueError("No response from basic research stage")
             
-        return self._parse_json_response(text_content, ceo_name, company_name)
+        result = self._parse_json_response(text_content, ceo_name, company_name)
+        self._log_llm_feedback("basic", result)
+        return result
 
     async def _run_career_research(
         self, 
@@ -286,7 +299,9 @@ class ProgressiveCEOResearcher:
                 logger.warning("No response from career research stage")
                 return None
                 
-            return self._parse_json_response(text_content, ceo_name, company_name)
+            result = self._parse_json_response(text_content, ceo_name, company_name)
+            self._log_llm_feedback(career_stage, result)
+            return result
             
         except Exception as e:
             logger.error(f"Career research stage failed: {e}")
@@ -316,7 +331,9 @@ class ProgressiveCEOResearcher:
                 logger.warning("No response from succession research stage")
                 return None
                 
-            return self._parse_json_response(text_content, ceo_name, company_name)
+            result = self._parse_json_response(text_content, ceo_name, company_name)
+            self._log_llm_feedback("succession", result)
+            return result
             
         except Exception as e:
             logger.error(f"Succession research stage failed: {e}")
@@ -346,7 +363,9 @@ class ProgressiveCEOResearcher:
                 logger.warning("No response from post-CEO research stage")
                 return None
                 
-            return self._parse_json_response(text_content, ceo_name, company_name)
+            result = self._parse_json_response(text_content, ceo_name, company_name)
+            self._log_llm_feedback("post_ceo", result)
+            return result
             
         except Exception as e:
             logger.error(f"Post-CEO research stage failed: {e}")
@@ -513,6 +532,49 @@ class ProgressiveCEOResearcher:
         return data
 
 
+    def _log_llm_feedback(self, stage: str, data: Dict[str, Any]) -> None:
+        """Log the LLM notes and highlight fields that look incomplete."""
+        if not isinstance(data, dict):
+            return
+
+        note_fields = ("notes", "conflicting_data_notes", "data_quality_notes")
+        stage_notes: List[str] = []
+        difficulty_entries: List[str] = []
+
+        for field in note_fields:
+            value = data.get(field)
+            if isinstance(value, str):
+                cleaned = value.strip()
+                if cleaned:
+                    logger.info("LLM %s (%s stage): %s", field, stage, cleaned)
+                    if field != "notes":
+                        stage_notes.append(f"{field}: {cleaned}")
+                        difficulty_entries.append(f"{field}: {cleaned}")
+
+        flagged_messages: List[str] = []
+        for field, value in data.items():
+            if isinstance(value, str):
+                cleaned_value = value.strip()
+                if not cleaned_value:
+                    continue
+                lowered = cleaned_value.lower()
+                if any(hint in lowered for hint in LLM_GAP_HINTS):
+                    flagged_messages.append(f"{field}: {cleaned_value}")
+
+        if flagged_messages:
+            limited_text = " | ".join(flagged_messages)
+            logger.info("LLM indicated limited information (%s stage): %s", stage, limited_text)
+            stage_notes.append(f"limited info -> {limited_text}")
+            difficulty_entries.append(f"limited info -> {limited_text}")
+
+        if stage_notes:
+            combined_note = f"{stage} stage: " + " | ".join(stage_notes)
+            data["notes"] = self._merge_notes(data.get("notes"), combined_note)
+
+        if difficulty_entries:
+            combined_difficulty = f"{stage} stage: " + " | ".join(difficulty_entries)
+            data["why_incorrect"] = self._merge_notes(data.get("why_incorrect"), combined_difficulty)
+
     def _merge_profile_data(self, base: Dict[str, Any], new_data: Optional[Dict[str, Any]]) -> None:
         """Merge stage data into the profile without losing previously validated values."""
         if not new_data:
@@ -522,8 +584,8 @@ class ProgressiveCEOResearcher:
         for key, value in new_data.items():
             if key in list_fields:
                 base[key] = self._merge_list_field(base.get(key), value)
-            elif key == 'notes':
-                base['notes'] = self._merge_notes(base.get('notes'), value)
+            elif key in {'notes', 'why_incorrect'}:
+                base[key] = self._merge_notes(base.get(key), value)
             elif value not in (None, '', [], {}):
                 base[key] = value
 

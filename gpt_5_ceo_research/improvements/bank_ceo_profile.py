@@ -394,6 +394,7 @@ CEOPROFILE_TO_BANK_MAP: Dict[str, str] = {
     "data_completeness": "data_completeness",
 
     "notes": "notes_2",
+    "why_incorrect": "why_incorrect",
 
     "post_ceo_role": "job_title_in_next_company",
     "next_company": "next_company",
