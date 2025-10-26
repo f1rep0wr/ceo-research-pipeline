@@ -77,6 +77,7 @@ CRITICAL REQUIREMENTS:
 
 SOURCE CITATION REQUIREMENTS:
 - source_urls MUST contain direct URLs to all sources used
+- **RANK sources by value: List the MOST INFORMATIVE/AUTHORITATIVE sources FIRST**
 - Each URL should directly support the data you found
 - Include SEC filings, press releases, news articles, company websites
 - Format: ["https://www.sec.gov/...", "https://company.com/press-release/...", "https://news.site/article/..."]
@@ -96,11 +97,16 @@ CONTEXT: This person was promoted from within the company (worked there before b
 
 RESEARCH FOCUS: Find their exact career path within the company leading to CEO role.
 
-CRITICAL LOGIC for last_position_before_ceo:
-- If was Board Member before CEO -> "Board Member"
-- If was President before CEO -> "President"
-- If was Chairman before CEO -> "Chairman"
-- If was Other Executive before CEO -> "Other Executive"
+CRITICAL LOGIC for last_position_before_ceo and role flags:
+- Determine the MOST RECENT internal role before CEO and map it to last_position_before_ceo using this precedence:
+  1) Board Member
+  2) President
+  3) Chairman
+  4) Other Executive
+- Set EXACTLY ONE of these boolean flags to true matching that most recent role:
+  was_board_member, was_president, was_chairman, was_ceo_of_subsidiary, was_other_executive
+- Set ALL OTHER role flags to false (use null only if completely unknown)
+- If "board_member_only" applies, treat as Board Member and set only was_board_member=true
 
 Use web search to find detailed career history. Look for:
 - Internal promotions and role changes
@@ -113,11 +119,11 @@ Return ONLY valid JSON:
 {{
     "year_insider_joined_firm": "YYYY when first joined in executive capacity",
     "last_position_before_ceo": "actual job title before CEO (see logic above)",
-    "was_president": "true/false/null",
-    "was_board_member": "true/false/null", 
-    "was_chairman": "true/false/null",
-    "was_ceo_of_subsidiary": "true/false/null",
-    "was_other_executive": "true/false/null",
+    "was_president": "true/false (exactly one true across role flags)",
+    "was_board_member": "true/false (exactly one true across role flags)", 
+    "was_chairman": "true/false (exactly one true across role flags)",
+    "was_ceo_of_subsidiary": "true/false (exactly one true across role flags)",
+    "was_other_executive": "true/false (exactly one true across role flags)",
     "was_board_member_only": "true/false/null",
     "was_former_ceo": "true/false/null",
     "was_former_other_executive": "true/false/null",
@@ -133,6 +139,7 @@ Return ONLY valid JSON:
 
 CRITICAL SOURCE REQUIREMENTS:
 - Include direct URLs for ALL sources accessed
+- **RANK sources by value: List the MOST INFORMATIVE/AUTHORITATIVE sources FIRST**
 - EVERY career fact must be verifiable through source_urls
 - Minimum 2-3 sources for career progression details
 - Include SEC filings, company announcements, business publications
@@ -179,7 +186,8 @@ Return ONLY valid JSON:
 }}
 
 CRITICAL SOURCE REQUIREMENTS:
-- Include direct URLs for ALL sources accessed  
+- Include direct URLs for ALL sources accessed
+- **RANK sources by value: List the MOST INFORMATIVE/AUTHORITATIVE sources FIRST**
 - EVERY previous company/role fact must have supporting source_urls
 - Minimum 2-3 sources for outsider career verification
 - Include LinkedIn, company websites, press releases, business publications, SEC filings, anything you can find that is relevant
@@ -224,6 +232,10 @@ Return ONLY valid JSON:
     "conflicting_data_notes": "any conflicting information found",
     "notes": "succession circumstances and context"
 }}
+
+SOURCE CITATION:
+- **RANK sources by value: List the MOST INFORMATIVE/AUTHORITATIVE sources FIRST**
+- Include ALL URLs accessed during research
 
 Only populate departure-related fields when you find definitive evidence that the CEO has already left (e.g., regulatory order in effect, resignation filed, successor named).
 Look for official announcements, board minutes, and press coverage of transitions."""
@@ -276,6 +288,7 @@ Return ONLY valid JSON:
 IMPORTANT:
 - Provide whatever information you CAN find, even if incomplete
 - Use null for fields where data is not available
+- **RANK sources by value: List the MOST INFORMATIVE/AUTHORITATIVE sources FIRST**
 - Include ALL source URLs accessed
 - Document what information could not be determined
 - Any partial information is better than no information"""
@@ -326,6 +339,10 @@ Return ONLY valid JSON:
     "source_urls": ["url1", "url2"],
     "notes": "brief data-quality flags (short phrase) or null"
 }}
+
+SOURCE CITATION:
+- **RANK sources by value: List the MOST INFORMATIVE/AUTHORITATIVE sources FIRST**
+- Include ALL URLs accessed during research
 
 Priority: Accuracy over completeness. Mark uncertain information clearly."""
 
@@ -390,6 +407,7 @@ Return ONLY valid JSON with ALL available fields:
 CRITICAL VERIFICATION REQUIREMENTS:
 - Every fact must be verifiable from cited sources
 - source_urls field MUST contain direct URLs for ALL sources accessed
+- **RANK sources by value: List the MOST INFORMATIVE/AUTHORITATIVE sources FIRST**
 - MINIMUM 5 sources required for comprehensive research
 - Include SEC filings, press releases, company websites, business publications
 - Mark conflicting information clearly in conflicting_data_notes

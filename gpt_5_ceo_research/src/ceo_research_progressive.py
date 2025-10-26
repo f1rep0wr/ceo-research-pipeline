@@ -155,6 +155,15 @@ class ProgressiveCEOResearcher:
                     
             # Final assessment
             self._clean_source_lists(profile_data, ceo_name, company_name)
+
+            # Re-rank merged sources for optimal value ordering
+            if profile_data.get('source_urls'):
+                profile_data['source_urls'] = await self._rerank_merged_sources(
+                    profile_data['source_urls'],
+                    ceo_name,
+                    company_name
+                )
+
             self._assess_final_data_quality(profile_data)
             
             # Create final profile
@@ -756,45 +765,200 @@ class ProgressiveCEOResearcher:
 
     def _assess_final_data_quality(self, profile_data: Dict[str, Any]) -> None:
         """Assess and update final data quality metrics."""
-        
+
         # Count non-null core fields
         core_fields = [
             'insider_outsider', 'appointment_date', 'start_date', 'departure_date',
             'tenure_years', 'previous_company', 'previous_position'
         ]
-        
+
         filled_core = sum(1 for field in core_fields if profile_data.get(field))
         core_completeness = filled_core / len(core_fields)
-        
+
         # Count total filled fields
         total_fields = len([v for v in profile_data.values() if v is not None and v != ''])
-        
+
         # Update data completeness
         if core_completeness >= 0.8 and total_fields >= 15:
             profile_data['data_completeness'] = 'high'
             base_confidence = 0.8
         elif core_completeness >= 0.5 and total_fields >= 10:
-            profile_data['data_completeness'] = 'medium'  
+            profile_data['data_completeness'] = 'medium'
             base_confidence = 0.6
         else:
             profile_data['data_completeness'] = 'low'
             base_confidence = 0.3
-            
+
         # Adjust confidence based on source quality
         source_urls = profile_data.get('source_urls', [])
         if isinstance(source_urls, list) and len(source_urls) >= 3:
             base_confidence += 0.1
         elif isinstance(source_urls, list) and len(source_urls) >= 1:
             base_confidence += 0.05
-            
+
         # Adjust for classification confidence
         classification_conf = profile_data.get('insider_outsider_confidence', '').upper()
         if classification_conf == 'HIGH':
             base_confidence += 0.05
         elif classification_conf == 'CONFLICTING':
             base_confidence -= 0.1
-            
+
         profile_data['confidence_score'] = min(1.0, max(0.1, base_confidence))
+
+    async def _rerank_merged_sources(self, all_sources: List[str], ceo_name: str, company_name: str) -> List[str]:
+        """
+        Re-rank all merged sources from multiple research stages by value and authority.
+
+        Uses GPT-5 to intelligently rank sources based on authority, information depth,
+        and relevance to CEO research.
+
+        Args:
+            all_sources: Combined list of sources from all research stages
+            ceo_name: CEO name for context
+            company_name: Company name for context
+
+        Returns:
+            Re-ranked list with most valuable sources first
+        """
+
+        if not all_sources or len(all_sources) <= 1:
+            return all_sources
+
+        logger.info(f"Re-ranking {len(all_sources)} merged sources for {ceo_name}")
+
+        # Build numbered source list for prompt
+        source_list = "\n".join(f"{i+1}. {url}" for i, url in enumerate(all_sources))
+
+        prompt = f"""You just completed multi-stage research on {ceo_name} (CEO of {company_name}) and collected these sources across different research stages:
+
+{source_list}
+
+**Task:** Re-rank these sources from MOST to LEAST valuable for CEO succession research.
+
+**Ranking Criteria (in priority order):**
+
+1. **Authority & Reliability**
+   - Government/Regulatory (SEC.gov, FDIC, OCC) = Highest authority
+   - Official company sources (investor relations, press releases from company domain) = Very high
+   - Premium financial news (WSJ, FT, Bloomberg, Reuters) = High
+   - Trade publications (American Banker, Bank Director) = Medium-high
+   - Press distribution (BusinessWire, PRNewswire) = Medium
+   - General news/Wikipedia = Lower
+
+2. **Information Depth**
+   - Detailed filings (proxy statements, 10-K, 8-K) = Most informative
+   - Long-form articles/profiles = Very informative
+   - Press releases with details = Informative
+   - Brief mentions/listings = Less informative
+
+3. **Relevance**
+   - Sources specifically about this CEO's career/succession = Most relevant
+   - Sources about the company's leadership = Relevant
+   - General industry sources = Less relevant
+
+4. **Specificity**
+   - Direct evidence (appointment dates, titles, quotes) = Most specific
+   - Biographical details = Specific
+   - General context = Less specific
+
+**Output Format:**
+Return ONLY valid JSON (no markdown, no explanation):
+{{
+  "ranked_sources": ["url1", "url2", "url3", ...],
+  "reasoning": "Brief explanation of top 3 source rankings"
+}}
+
+The ranked_sources array MUST contain ALL {len(all_sources)} URLs in your preferred order."""
+
+        try:
+            response = await self.client.create_response(
+                prompt=prompt,
+                reasoning_effort="low",  # Fast but still thoughtful
+                tools=[],  # No web search needed
+                verbosity="low"  # Valid values: low, medium, high
+            )
+
+            text_content = self._extract_text_from_response(response)
+            if not text_content:
+                logger.warning("No response from source re-ranking, keeping original order")
+                return all_sources
+
+            # Parse JSON response
+            try:
+                # Clean response
+                cleaned = text_content.strip()
+                if cleaned.startswith('```'):
+                    lines = cleaned.split('\n')
+                    cleaned = '\n'.join(line for line in lines if not line.strip().startswith('```'))
+
+                result = json.loads(cleaned)
+                ranked = result.get('ranked_sources', [])
+                reasoning = result.get('reasoning', 'No reasoning provided')
+
+                if not ranked:
+                    logger.warning("Empty ranked_sources in response, keeping original order")
+                    return all_sources
+
+                # Normalize ranked list to match original sources exactly (KISS):
+                # 1) If model returned indices, map them to URLs
+                # 2) Drop unknowns and duplicates while preserving order
+                # 3) Append any missing originals at the end in original order
+
+                def _normalize_ranked(ranked_list):
+                    # Map integers to URLs (1-based or 0-based tolerant)
+                    mapped: list[str] = []
+                    for item in ranked_list:
+                        if isinstance(item, int):
+                            # Prefer 1-based, fallback to 0-based if out of range
+                            url = None
+                            if 1 <= item <= len(all_sources):
+                                url = all_sources[item - 1]
+                            elif 0 <= item < len(all_sources):
+                                url = all_sources[item]
+                            if url is not None:
+                                mapped.append(url)
+                        elif isinstance(item, str):
+                            mapped.append(item.strip())
+                    # Deduplicate and filter to known sources
+                    seen = set()
+                    known = set(all_sources)
+                    deduped: list[str] = []
+                    for url in mapped:
+                        if url in known and url not in seen:
+                            deduped.append(url)
+                            seen.add(url)
+                    # Append any missing originals in original order
+                    for url in all_sources:
+                        if url not in seen:
+                            deduped.append(url)
+                            seen.add(url)
+                    return deduped
+
+                normalized_ranked = _normalize_ranked(ranked)
+
+                if len(normalized_ranked) != len(all_sources):
+                    # As a safety net; should not happen after normalization
+                    logger.warning(
+                        f"Ranked sources count mismatch after normalization ({len(normalized_ranked)} vs {len(all_sources)}), using original order"
+                    )
+                    return all_sources
+
+                if len(ranked) != len(all_sources):
+                    logger.warning(
+                        f"Ranked sources count mismatch ({len(ranked)} vs {len(all_sources)}), normalized order will be used"
+                    )
+
+                logger.info(f"Successfully re-ranked sources. Reasoning: {reasoning}")
+                return normalized_ranked
+
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse re-ranking JSON: {e}")
+                logger.error(f"Response text: {text_content[:200]}")
+                return all_sources
+
+        except Exception as e:
+            logger.error(f"Source re-ranking failed: {e}")
+            return all_sources  # Fallback to original order
 
 
 # Convenience functions for backward compatibility

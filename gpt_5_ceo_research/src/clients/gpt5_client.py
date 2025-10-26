@@ -260,3 +260,14 @@ class GPT5ResponsesClient:
                 error_type=type(e).__name__
             )
             raise
+
+    async def close(self) -> None:
+        """
+        Close the underlying AsyncOpenAI client and release resources.
+
+        This should be called when you're done using the client to properly
+        clean up connections and resources.
+        """
+        if self._client is not None:
+            await self._client.close()
+            logger.info("GPT-5 client closed successfully")

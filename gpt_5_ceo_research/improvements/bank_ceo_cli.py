@@ -139,6 +139,12 @@ def build_cli() -> argparse.ArgumentParser:
         action="store_true",
         help="List KEYIDs that would be processed without calling GPT",
     )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=3,
+        help="Number of records to process concurrently (default: 3)",
+    )
     return parser
 
 
@@ -162,30 +168,57 @@ async def _run_update(args: argparse.Namespace) -> None:
         print(f"Matched {len(targets)} KEYIDs (dry-run).")
         return
 
-    researcher = ProgressiveCEOResearcher()
     updated_ids: List[int] = []
     skipped: List[int] = []
+    ds_lock = asyncio.Lock()
 
-    for keyid in targets:
-        profile = dataset.get_profile(keyid)
-        names = _resolve_names(profile)
-        if not names:
-            skipped.append(keyid)
-            continue
-        ceo_name, company_name = names
-        ceo_result = await researcher.research_ceo_progressive(
-            ceo_name=ceo_name,
-            company_name=company_name,
-            reasoning_effort=args.reasoning,
-        )
-        updated = from_ceo_profile(ceo_result, existing=profile)
-        dataset.update_profile(keyid, updated)
-        await _apply_update_with_lock(
-            input_path=input_path,
-            output_path=output_path,
-            update=(keyid, updated),
-        )
-        updated_ids.append(keyid)
+    async def worker(keyid: int) -> None:
+        try:
+            # Read current profile snapshot
+            async with ds_lock:
+                profile = dataset.get_profile(keyid)
+            names = _resolve_names(profile)
+            if not names:
+                async with ds_lock:
+                    skipped.append(keyid)
+                return
+
+            ceo_name, company_name = names
+
+            # Create independent researcher per task for safety
+            researcher = ProgressiveCEOResearcher()
+            ceo_result = await researcher.research_ceo_progressive(
+                ceo_name=ceo_name,
+                company_name=company_name,
+                reasoning_effort=args.reasoning,
+            )
+            updated = from_ceo_profile(ceo_result, existing=profile)
+
+            # Update in-memory dataset under lock
+            async with ds_lock:
+                dataset.update_profile(keyid, updated)
+                updated_ids.append(keyid)
+
+            # Persist update with file-level lock
+            await _apply_update_with_lock(
+                input_path=input_path,
+                output_path=output_path,
+                update=(keyid, updated),
+            )
+        except Exception as exc:
+            # Minimal error handling: skip on error
+            async with ds_lock:
+                skipped.append(keyid)
+
+    # Concurrency-lite execution
+    sem = asyncio.Semaphore(max(1, args.concurrency))
+
+    async def limited(keyid: int):
+        async with sem:
+            await worker(keyid)
+
+    tasks = [asyncio.create_task(limited(k)) for k in targets]
+    await asyncio.gather(*tasks)
 
     if not updated_ids:
         if skipped:

@@ -74,10 +74,20 @@ def setup_logger() -> structlog.stdlib.BoundLogger:
     # Convert string log level to logging constant
     log_level = getattr(logging, settings.log_level.upper())
 
-    # Configure standard library logging
+    # Configure standard library logging with UTF-8 encoding
+    import io
+
+    # Wrap stdout with UTF-8 encoding to handle Unicode characters on Windows
+    utf8_stdout = io.TextIOWrapper(
+        sys.stdout.buffer if hasattr(sys.stdout, 'buffer') else sys.stdout,
+        encoding='utf-8',
+        errors='replace',  # Replace unsupported characters instead of crashing
+        line_buffering=True
+    )
+
     logging.basicConfig(
         format="%(message)s",
-        stream=sys.stdout,
+        stream=utf8_stdout,
         level=log_level,
     )
 

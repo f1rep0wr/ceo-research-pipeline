@@ -235,6 +235,63 @@ def _finalize_profile(base_data: Dict[str, Any], ceo_data: Dict[str, Any]) -> No
             normalized = _normalize_boolean(base_data[field])
             base_data[field] = normalized
 
+    # KISS exclusivity for insider pre-CEO roles:
+    # Ensure only the most recent internal role is marked true.
+    insider_flag = _normalize_boolean(base_data.get("insider"))
+    if insider_flag == 1:
+        role_fields = [
+            "president",
+            "board_member",
+            "chairman",
+            "ceo_of_subsidiary",
+            "other_executive",
+        ]
+
+        # Determine chosen role from last_position_before_ceo when available
+        chosen = None
+        last_pos_raw = base_data.get("last_position_before_ceo")
+        last_pos = str(last_pos_raw).strip().lower() if isinstance(last_pos_raw, str) else ""
+
+        # If flagged as board_member_only, prefer Board Member
+        if _normalize_boolean(base_data.get("board_member_only")) == 1:
+            chosen = "board_member"
+            base_data["last_position_before_ceo"] = "Board Member"
+        elif last_pos:
+            if "board" in last_pos:
+                chosen = "board_member"
+                base_data["last_position_before_ceo"] = "Board Member"
+            elif "president" in last_pos:
+                chosen = "president"
+                base_data["last_position_before_ceo"] = "President"
+            elif "chair" in last_pos:
+                chosen = "chairman"
+                base_data["last_position_before_ceo"] = "Chairman"
+            else:
+                chosen = "other_executive"
+        else:
+            # Fallback to priority when last_position_before_ceo is missing
+            priority = [
+                "board_member",
+                "president",
+                "chairman",
+                "other_executive",
+                "ceo_of_subsidiary",
+            ]
+            for f in priority:
+                if _normalize_boolean(base_data.get(f)) == 1:
+                    chosen = f
+                    break
+
+        # Apply exclusivity (only chosen = 1, others = 0)
+        if chosen:
+            for f in role_fields:
+                base_data[f] = 1 if f == chosen else 0
+            # board_member_only should only remain if chosen is board_member
+            base_data["board_member_only"] = 1 if chosen == "board_member" else 0
+        else:
+            for f in role_fields:
+                base_data[f] = 0
+
     for field in BOOLEAN_FIELDS:
         value = base_data.get(field)
         if value == 0 or value == "0":
@@ -523,9 +580,18 @@ def from_ceo_profile(
     prev_title_has_value = bool(isinstance(prev_title, str) and prev_title.strip())
     prev_firm_has_value = bool(isinstance(prev_firm, str) and prev_firm.strip())
 
-    if insider_flag != 1 or not (prev_title_has_value and prev_firm_has_value):
+    # KISS: For insiders, never keep external previous firm/title
+    if insider_flag == 1:
         base_data["previous_title"] = None
         base_data["previous_firm"] = None
+    else:
+        # Defensive: if either missing or previous_firm equals current company, clear both
+        company_val = base_data.get("companyname") or base_data.get("company_name_wrds_clean")
+        def _canon(v):
+            return str(v).strip().lower() if isinstance(v, str) else ""
+        if (not (prev_title_has_value and prev_firm_has_value)) or (_canon(prev_firm) == _canon(company_val)):
+            base_data["previous_title"] = None
+            base_data["previous_firm"] = None
 
     last_position = base_data.get("last_position_before_ceo")
     if isinstance(last_position, str) and last_position.strip().lower() == "other executive":

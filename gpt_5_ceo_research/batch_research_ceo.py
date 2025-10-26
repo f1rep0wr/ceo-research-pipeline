@@ -87,10 +87,14 @@ async def _locked_output_file(target: Path, timeout: float = 30.0, poll: float =
               help='Delay between requests in seconds (default: 2.0)')
 @click.option('--verbose', '-v', is_flag=True,
               help='Show detailed progress for each CEO')
+@click.option('--concurrency', '-c',
+              type=int,
+              default=3,
+              help='Number of CEOs to process concurrently (default: 3)')
 @click.option('--dry-run', is_flag=True,
               help='Parse input file and show what would be processed without running research')
 def batch_research_ceo(input_file: str, output: str, method: str, reasoning_effort: str,
-                      max_errors: int, delay: float, verbose: bool, dry_run: bool):
+                      max_errors: int, delay: float, verbose: bool, concurrency: int, dry_run: bool):
     """
     Batch process CEO research from a text file.
 
@@ -117,7 +121,7 @@ def batch_research_ceo(input_file: str, output: str, method: str, reasoning_effo
     
     try:
         asyncio.run(_run_batch_research(
-            input_file, output, method, reasoning_effort, max_errors, delay, verbose, dry_run
+            input_file, output, method, reasoning_effort, max_errors, delay, verbose, concurrency, dry_run
         ))
     except KeyboardInterrupt:
         click.echo("\n[INTERRUPTED] Batch processing interrupted by user.", err=True)
@@ -135,6 +139,7 @@ async def _run_batch_research(
     max_errors: int,
     delay: float,
     verbose: bool,
+    concurrency: int,
     dry_run: bool
 ) -> None:
     """Run the batch research process."""
@@ -153,7 +158,7 @@ async def _run_batch_research(
     click.echo(f"Found {len(ceo_bank_pairs)} CEO/Bank pairs to process")
     
     if dry_run:
-        _show_dry_run_preview(ceo_bank_pairs, method, reasoning_effort, output_path)
+        _show_dry_run_preview(ceo_bank_pairs, method, reasoning_effort, output_path, concurrency, delay)
         return
     
     # Initialize tracking
@@ -175,67 +180,68 @@ async def _run_batch_research(
     click.echo(f"   Reasoning effort: {reasoning_effort}")
     click.echo(f"   Output: {output_file.absolute()}")
     click.echo(f"   Max consecutive errors: {max_errors}")
-    click.echo(f"   Delay between requests: {delay}s")
+    click.echo(f"   Concurrency: {max(1, concurrency)}")
+    click.echo(f"   Stagger between starts: {delay}s")
     click.echo()
     
-    # Process each CEO/Bank pair
+    # Concurrency-lite processing using a semaphore
+    sem = asyncio.Semaphore(max(1, concurrency))
+    io_lock = asyncio.Lock()  # serialize console output and results updates
+
+    async def worker(index: int, ceo_name: str, bank_name: str):
+        async with sem:
+            # Progress line
+            async with io_lock:
+                click.echo(f"[{index}/{results['total']}] Processing: {ceo_name} at {bank_name}")
+                if verbose:
+                    click.echo(f"   Using {method} method with {reasoning_effort} reasoning...")
+
+            try:
+                profile = await _research_single_ceo(
+                    ceo_name, bank_name, method, reasoning_effort, verbose
+                )
+
+                await _export_to_batch_csv(profile, output_file, verbose)
+
+                async with io_lock:
+                    results['completed'] += 1
+                    results['consecutive_errors'] = 0
+                    if verbose:
+                        sources_count = len(profile.to_csv_rows_by_source()) if profile else 0
+                        click.echo(f"   [SUCCESS] {sources_count} sources, {profile.confidence_score:.2f} confidence")
+                    else:
+                        click.echo("   [SUCCESS]")
+
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Error processing {ceo_name} at {bank_name}: {error_msg}")
+                async with io_lock:
+                    results['errors'] += 1
+                    results['consecutive_errors'] += 1
+                    if verbose:
+                        click.echo(f"   [ERROR] {error_msg}")
+                    else:
+                        click.echo(f"   [ERROR] (continuing...)")
+
+            # Periodic progress (non-verbose)
+            if not verbose:
+                async with io_lock:
+                    completed = results['completed']
+                    if completed > 0 and completed % 5 == 0:
+                        elapsed = time.time() - start_time
+                        rate = completed / elapsed * 60 if elapsed > 0 else 0
+                        click.echo(f"   Progress: {completed} completed, {results['errors']} errors, {rate:.1f} CEOs/min")
+
+    # Launch tasks with optional stagger between starts
+    tasks = []
     for i, (ceo_name, bank_name) in enumerate(ceo_bank_pairs, 1):
-        
-        # Check if we should stop due to too many consecutive errors
-        if results['consecutive_errors'] >= max_errors:
-            click.echo(f"\n[STOPPING] {max_errors} consecutive errors reached")
-            break
-        
-        # Show progress
-        click.echo(f"[{i}/{results['total']}] Processing: {ceo_name} at {bank_name}")
-        
-        try:
-            # Research this CEO
-            if verbose:
-                click.echo(f"   Using {method} method with {reasoning_effort} reasoning...")
-            
-            profile = await _research_single_ceo(
-                ceo_name, bank_name, method, reasoning_effort, verbose
-            )
-            
-            # Export to CSV (append mode)
-            await _export_to_batch_csv(profile, output_file, verbose)
-            
-            # Update success tracking
-            results['completed'] += 1
-            results['consecutive_errors'] = 0  # Reset consecutive error count
-            
-            if verbose:
-                sources_count = len(profile.to_csv_rows_by_source()) if profile else 0
-                click.echo(f"   [SUCCESS] {sources_count} sources, {profile.confidence_score:.2f} confidence")
-            else:
-                click.echo("   [SUCCESS]")
-            
-        except Exception as e:
-            # Handle error gracefully
-            error_msg = str(e)
-            results['errors'] += 1
-            results['consecutive_errors'] += 1
-            
-            logger.error(f"Error processing {ceo_name} at {bank_name}: {error_msg}")
-            
-            if verbose:
-                click.echo(f"   [ERROR] {error_msg}")
-            else:
-                click.echo(f"   [ERROR] (continuing...)")
-        
-        # Progress update
-        if not verbose and i % 5 == 0:  # Show progress every 5 CEOs in non-verbose mode
-            elapsed = time.time() - start_time
-            rate = results['completed'] / elapsed * 60 if elapsed > 0 else 0
-            click.echo(f"   Progress: {results['completed']} completed, {results['errors']} errors, {rate:.1f} CEOs/min")
-        
-        # Delay between requests (be nice to APIs)
-        if i < results['total'] and delay > 0:
-            if verbose:
-                click.echo(f"   Waiting {delay}s...")
+        tasks.append(asyncio.create_task(worker(i, ceo_name, bank_name)))
+        if delay > 0:
             await asyncio.sleep(delay)
-    
+
+    # Wait for all to finish
+    await asyncio.gather(*tasks, return_exceptions=False)
+
     # Final summary
     _show_batch_summary(results, output_file)
 
@@ -280,7 +286,14 @@ def _parse_input_file(input_file: str) -> List[Tuple[str, str]]:
     return ceo_bank_pairs
 
 
-def _show_dry_run_preview(ceo_bank_pairs: List[Tuple[str, str]], method: str, reasoning_effort: str, output_path: str):
+def _show_dry_run_preview(
+    ceo_bank_pairs: List[Tuple[str, str]],
+    method: str,
+    reasoning_effort: str,
+    output_path: str,
+    concurrency: int,
+    delay: float
+):
     """Show what would be processed in dry run mode."""
     
     click.echo("\n" + "="*60)
@@ -291,6 +304,8 @@ def _show_dry_run_preview(ceo_bank_pairs: List[Tuple[str, str]], method: str, re
     click.echo(f"Research method: {method}")
     click.echo(f"Reasoning effort: {reasoning_effort}")
     click.echo(f"Output file: {output_path}")
+    click.echo(f"Concurrency: {max(1, concurrency)}")
+    click.echo(f"Stagger between starts: {delay}s")
     
     click.echo(f"\nCEOs to process:")
     for i, (ceo_name, bank_name) in enumerate(ceo_bank_pairs, 1):
