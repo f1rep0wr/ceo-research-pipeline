@@ -1,10 +1,5 @@
 # CEO Research Tool
 
-# FOR MULTIPLE CEOS, RUN: python batch_research_ceo.py input_txt_file.txt --method progressive --reasoning-effort high --verbose --output "output_file.csv"
-
-python batch_research_ceo.py 10_15.txt --method progressive --reasoning-effort high --verbose --output "10_15.csv"
-
-
 A command-line tool for researching CEO information using GPT-5 with web search capabilities. Designed with KISS principles for simplicity and reliability.
 
 ## Features

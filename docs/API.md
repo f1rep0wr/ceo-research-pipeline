@@ -16,8 +16,8 @@ This document provides comprehensive API reference for the `GPT5ResponsesClient`
 
 ```python
 import asyncio
-from gpt_5_ceo_research.src.config.settings import Settings
-from gpt_5_ceo_research.src.clients.gpt5_client import GPT5ResponsesClient
+from src.config.settings import Settings
+from src.clients.gpt5_client import GPT5ResponsesClient
 
 # Initialize client with settings
 settings = Settings(openai_api_key="sk-your-api-key-here")
@@ -75,8 +75,8 @@ Initialize the GPT-5 client with application settings.
 
 **Example:**
 ```python
-from gpt_5_ceo_research.src.config.settings import Settings
-from gpt_5_ceo_research.src.clients.gpt5_client import GPT5ResponsesClient
+from src.config.settings import Settings
+from src.clients.gpt5_client import GPT5ResponsesClient
 
 # With valid API key
 settings = Settings(openai_api_key="sk-your-api-key-here")
@@ -372,8 +372,8 @@ async def graceful_degradation_example():
 
 ```python
 import asyncio
-from gpt_5_ceo_research.src.config.settings import Settings
-from gpt_5_ceo_research.src.clients.gpt5_client import GPT5ResponsesClient
+from src.config.settings import Settings
+from src.clients.gpt5_client import GPT5ResponsesClient
 
 async def research_assistant():
     """Basic research assistant using GPT-5"""
@@ -425,8 +425,8 @@ if __name__ == "__main__":
 ```python
 import asyncio
 from typing import List, Dict
-from gpt_5_ceo_research.src.config.settings import Settings
-from gpt_5_ceo_research.src.clients.gpt5_client import GPT5ResponsesClient
+from src.config.settings import Settings
+from src.clients.gpt5_client import GPT5ResponsesClient
 
 class AnalysisSystem:
     """Multi-topic analysis system using GPT-5"""
@@ -538,8 +538,8 @@ import asyncio
 import logging
 from typing import Optional, Dict, Any
 from contextlib import asynccontextmanager
-from gpt_5_ceo_research.src.config.settings import Settings
-from gpt_5_ceo_research.src.clients.gpt5_client import GPT5ResponsesClient
+from src.config.settings import Settings
+from src.clients.gpt5_client import GPT5ResponsesClient
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

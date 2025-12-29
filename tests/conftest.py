@@ -16,12 +16,8 @@ from unittest.mock import Mock, AsyncMock, patch
 import pytest
 from pydantic import ValidationError
 
-# Add the src directory to Python path for imports
-src_path = Path(__file__).parent.parent / "src"
-sys.path.insert(0, str(src_path))
-
-from config.settings import Settings
-from clients.gpt5_client import GPT5ResponsesClient
+from src.config.settings import Settings
+from src.clients.gpt5_client import GPT5ResponsesClient
 
 
 # Configure pytest-asyncio

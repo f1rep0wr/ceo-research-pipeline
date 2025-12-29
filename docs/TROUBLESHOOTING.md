@@ -329,7 +329,7 @@ ImportError: attempted relative import with no known parent package
 
 3. Use absolute imports in code:
    ```python
-   from gpt_5_ceo_research.src.config.settings import get_settings
+   from src.config.settings import get_settings
    ```
 
 ## Performance and Timeout Issues
@@ -477,7 +477,7 @@ pip list | grep -E "(openai|aiohttp|pydantic)"
 
 # 4. Check configuration
 python -c "
-from gpt_5_ceo_research.src.config.settings import get_settings
+from src.config.settings import get_settings
 settings = get_settings()
 print(f'Model: {settings.gpt5_model}')
 print(f'API key set: {bool(settings.openai_api_key)}')
@@ -487,7 +487,7 @@ print(f'Timeout: {settings.timeout_seconds}s')
 # 5. Test API connection
 python -c "
 import asyncio
-from gpt_5_ceo_research.src.api.client import GPT5Client
+from src.api.client import GPT5Client
 async def test():
     client = GPT5Client()
     try:
@@ -580,7 +580,7 @@ When reporting complex issues, create a minimal example:
 ```python
 # minimal_repro.py
 import asyncio
-from gpt_5_ceo_research.src.api.client import GPT5Client
+from src.api.client import GPT5Client
 
 async def reproduce_issue():
     """Minimal code that demonstrates the problem"""
@@ -643,7 +643,7 @@ pip install -r requirements.txt
 python -c "import openai; print('OpenAI library works')"
 
 # Configuration validation
-python -c "from gpt_5_ceo_research.src.config.settings import get_settings; print('Config OK')"
+python -c "from src.config.settings import get_settings; print('Config OK')"
 ```
 
 ### Support Contacts

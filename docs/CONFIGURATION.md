@@ -17,7 +17,7 @@ This guide covers all configuration options for the GPT-5 CEO Research applicati
 
 3. Validate your configuration:
    ```bash
-   python -c "from gpt_5_ceo_research.src.config.settings import get_settings; print('Configuration valid!')"
+   python -c "from src.config.settings import get_settings; print('Configuration valid!')"
    ```
 
 ## Environment Variables Reference
@@ -217,17 +217,17 @@ The application uses Pydantic for automatic validation of all configuration valu
 
 1. **Basic validation**:
    ```bash
-   python -c "from gpt_5_ceo_research.src.config.settings import get_settings; settings = get_settings(); print('All settings valid!')"
+   python -c "from src.config.settings import get_settings; settings = get_settings(); print('All settings valid!')"
    ```
 
 2. **Check specific values**:
    ```bash
-   python -c "from gpt_5_ceo_research.src.config.settings import get_settings; settings = get_settings(); print(f'Model: {settings.gpt5_model}'); print(f'Log Level: {settings.log_level}')"
+   python -c "from src.config.settings import get_settings; settings = get_settings(); print(f'Model: {settings.gpt5_model}'); print(f'Log Level: {settings.log_level}')"
    ```
 
 3. **Validate API key format**:
    ```bash
-   python -c "from gpt_5_ceo_research.src.config.settings import get_settings; settings = get_settings(); print('API key format valid!' if settings.openai_api_key.startswith('sk-') else 'Invalid API key format')"
+   python -c "from src.config.settings import get_settings; settings = get_settings(); print('API key format valid!' if settings.openai_api_key.startswith('sk-') else 'Invalid API key format')"
    ```
 
 ## Common Configuration Issues
@@ -346,10 +346,10 @@ env | grep -E "(OPENAI|GPT5|DEFAULT|MAX|TIMEOUT|LOG|CONFIDENCE|CACHE)"
 set | findstr /I "OPENAI GPT5 DEFAULT MAX TIMEOUT LOG CONFIDENCE CACHE"
 
 # Test configuration loading
-python -c "from gpt_5_ceo_research.src.config.settings import get_settings; import json; s = get_settings(); print(json.dumps(s.dict(), indent=2, default=str))"
+python -c "from src.config.settings import get_settings; import json; s = get_settings(); print(json.dumps(s.dict(), indent=2, default=str))"
 
 # Validate specific setting
-python -c "from gpt_5_ceo_research.src.config.settings import get_settings; print(f'Using model: {get_settings().gpt5_model}')"
+python -c "from src.config.settings import get_settings; print(f'Using model: {get_settings().gpt5_model}')"
 ```
 
 ## Getting Help

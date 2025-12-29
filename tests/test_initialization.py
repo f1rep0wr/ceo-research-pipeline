@@ -13,8 +13,8 @@ from unittest.mock import patch, AsyncMock, MagicMock
 from pydantic import ValidationError
 import asyncio
 
-from config.settings import Settings, get_settings, reset_settings
-from clients.gpt5_client import GPT5ResponsesClient
+from src.config.settings import Settings, get_settings, reset_settings
+from src.clients.gpt5_client import GPT5ResponsesClient
 
 
 class TestSettings:
@@ -208,7 +208,7 @@ class TestSettings:
             )
             assert settings.default_verbosity == expected_level
 
-    @patch('gpt_5_ceo_research.src.config.settings.Settings.model_config', {'env_file': None})
+    @patch('src.config.settings.Settings.model_config', {'env_file': None})
     @patch.dict(os.environ, {}, clear=True)
     def test_missing_required_openai_api_key(self):
         """Test that Settings creation fails when required OpenAI API key is missing."""
@@ -355,7 +355,7 @@ class TestSettings:
         assert len(errors) == 1
         assert errors[0]["type"] == "greater_than_equal"
 
-    @patch('gpt_5_ceo_research.src.config.settings.Settings.model_config', {'env_file': None})
+    @patch('src.config.settings.Settings.model_config', {'env_file': None})
     @patch.dict(os.environ, {
         "OPENAI_API_KEY": "sk-env-test-key-12345",
         "GPT5_MODEL": "gpt-5",
@@ -383,7 +383,7 @@ class TestSettings:
         assert settings.confidence_threshold == 0.9
         assert settings.cache_ttl_hours == 48
 
-    @patch('gpt_5_ceo_research.src.config.settings.Settings.model_config', {'env_file': None})
+    @patch('src.config.settings.Settings.model_config', {'env_file': None})
     @patch.dict(os.environ, {
         "OPENAI_API_KEY": "sk-env-key",
         "LOG_LEVEL": "warning"  # lowercase to test normalization
@@ -395,7 +395,7 @@ class TestSettings:
         assert settings.openai_api_key == "sk-env-key"
         assert settings.log_level == "WARNING"  # Should be normalized to uppercase
 
-    @patch('gpt_5_ceo_research.src.config.settings.Settings.model_config', {'env_file': None})
+    @patch('src.config.settings.Settings.model_config', {'env_file': None})
     @patch.dict(os.environ, {
         "OPENAI_API_KEY": "invalid-env-key"  # Invalid format
     }, clear=True)
@@ -409,7 +409,7 @@ class TestSettings:
         assert len(errors) == 1
         assert "must start with 'sk-'" in str(error.errors()[0]["ctx"]["error"])
 
-    @patch('gpt_5_ceo_research.src.config.settings.Settings.model_config', {'env_file': None})
+    @patch('src.config.settings.Settings.model_config', {'env_file': None})
     @patch.dict(os.environ, {}, clear=True)
     def test_environment_variable_missing_required(self):
         """Test that missing required environment variables cause validation error."""
@@ -423,7 +423,7 @@ class TestSettings:
 
     def test_openai_api_key_validator_function(self):
         """Test the openai_api_key validator function directly."""
-        from config.settings import Settings
+        from src.config.settings import Settings
 
         # Test valid key
         valid_key = Settings.validate_openai_api_key("sk-valid-key-12345")
@@ -437,7 +437,7 @@ class TestSettings:
 
     def test_log_level_validator_function(self):
         """Test the log_level validator function directly."""
-        from config.settings import Settings
+        from src.config.settings import Settings
 
         # Test valid levels (should be normalized to uppercase)
         test_cases = [
@@ -465,7 +465,7 @@ class TestSettings:
 
     def test_verbosity_validator_function(self):
         """Test the verbosity validator function directly."""
-        from config.settings import Settings
+        from src.config.settings import Settings
 
         # Test valid levels (should be normalized to lowercase)
         test_cases = [
@@ -487,7 +487,7 @@ class TestSettings:
 
         assert "must be one of" in str(exc_info.value)
 
-    @patch('gpt_5_ceo_research.src.config.settings.Settings.model_config', {'env_file': None})
+    @patch('src.config.settings.Settings.model_config', {'env_file': None})
     def test_get_settings_singleton_behavior(self):
         """Test that get_settings() returns the same instance on subsequent calls."""
         # Reset to ensure clean state
@@ -502,7 +502,7 @@ class TestSettings:
             assert settings1 is settings2
             assert settings1.openai_api_key == "sk-singleton-test-key"
 
-    @patch('gpt_5_ceo_research.src.config.settings.Settings.model_config', {'env_file': None})
+    @patch('src.config.settings.Settings.model_config', {'env_file': None})
     def test_reset_settings_function(self):
         """Test that reset_settings() forces reloading of settings."""
         # Ensure we start with clean state
@@ -557,7 +557,7 @@ class TestSettings:
         assert fields["timeout_seconds"].description is not None
         assert fields["confidence_threshold"].description is not None
 
-    @patch('gpt_5_ceo_research.src.config.settings.Settings.model_config', {'env_file': None})
+    @patch('src.config.settings.Settings.model_config', {'env_file': None})
     @patch.dict(os.environ, {
         "OPENAI_API_KEY": "sk-case-test-key",
         "openai_api_key": "sk-lowercase-key"  # Test case sensitivity
@@ -597,7 +597,7 @@ class TestGPT5Client:
 
         # Create invalid settings (no API key)
         with patch.dict(os.environ, {}, clear=True):
-            with patch('gpt_5_ceo_research.src.config.settings.Settings.model_config', {'env_file': None}):
+            with patch('src.config.settings.Settings.model_config', {'env_file': None}):
                 try:
                     self.invalid_settings = Settings()
                 except ValidationError:
@@ -607,7 +607,7 @@ class TestGPT5Client:
 
     def test_client_initialization_with_valid_api_key(self):
         """Test GPT5ResponsesClient initialization with valid API key."""
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_client_instance = MagicMock()
             mock_openai.return_value = mock_client_instance
 
@@ -627,7 +627,7 @@ class TestGPT5Client:
         mock_settings = MagicMock()
         mock_settings.openai_api_key = None
 
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             client = GPT5ResponsesClient(mock_settings)
 
             # Verify client initialized but is not ready
@@ -640,7 +640,7 @@ class TestGPT5Client:
 
     def test_client_initialization_with_exception(self):
         """Test GPT5ResponsesClient initialization when AsyncOpenAI raises exception."""
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.side_effect = Exception("API initialization error")
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -660,7 +660,7 @@ class TestGPT5Client:
         mock_async_client = AsyncMock()
         mock_async_client.responses.create = AsyncMock(return_value=mock_response)
 
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.return_value = mock_async_client
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -689,7 +689,7 @@ class TestGPT5Client:
         mock_async_client = AsyncMock()
         mock_async_client.responses.create = AsyncMock(return_value=mock_response)
 
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.return_value = mock_async_client
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -714,7 +714,7 @@ class TestGPT5Client:
         mock_async_client = AsyncMock()
         mock_async_client.responses.create = AsyncMock(return_value=mock_response)
 
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.return_value = mock_async_client
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -763,7 +763,7 @@ class TestGPT5Client:
             side_effect=[OpenAIError("Temporary error"), mock_response]
         )
 
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.return_value = mock_async_client
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -788,7 +788,7 @@ class TestGPT5Client:
             side_effect=OpenAIError("Persistent error")
         )
 
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.return_value = mock_async_client
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -809,7 +809,7 @@ class TestGPT5Client:
         mock_async_client = AsyncMock()
         mock_async_client.responses.create = AsyncMock(return_value=mock_response)
 
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.return_value = mock_async_client
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -847,7 +847,7 @@ class TestGPT5Client:
         mock_async_client = AsyncMock()
         mock_async_client.responses.create = AsyncMock(side_effect=Exception("Connection error"))
 
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.return_value = mock_async_client
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -917,7 +917,7 @@ class TestGPT5Client:
     def test_client_readiness_checks(self):
         """Test client readiness property under various conditions."""
         # Test ready client
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.return_value = MagicMock()
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -931,7 +931,7 @@ class TestGPT5Client:
         assert client.is_ready is False
 
         # Test not ready client (initialization exception)
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.side_effect = Exception("Init error")
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -946,7 +946,7 @@ class TestGPT5Client:
         mock_async_client = AsyncMock()
         mock_async_client.responses.create = AsyncMock(return_value=mock_response)
 
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.return_value = mock_async_client
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -979,7 +979,7 @@ class TestGPT5Client:
 
         mock_async_client = AsyncMock()
 
-        with patch('gpt_5_ceo_research.src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
+        with patch('src.clients.gpt5_client.AsyncOpenAI') as mock_openai:
             mock_openai.return_value = mock_async_client
 
             client = GPT5ResponsesClient(self.valid_settings)
@@ -1012,7 +1012,7 @@ class TestConstants:
 
     def test_gpt5_model_constants(self):
         """Test GPT-5 model name constants are correctly defined."""
-        from config.constants import (
+        from src.config.constants import (
             GPT_5_MODEL, GPT_5_MINI_MODEL, GPT_5_NANO_MODEL, GPT_5_MODELS
         )
 
@@ -1028,7 +1028,7 @@ class TestConstants:
 
     def test_reasoning_level_constants(self):
         """Test reasoning effort level constants are correctly defined."""
-        from config.constants import (
+        from src.config.constants import (
             REASONING_MINIMAL, REASONING_LOW, REASONING_MEDIUM, REASONING_HIGH, REASONING_LEVELS
         )
 
@@ -1045,7 +1045,7 @@ class TestConstants:
 
     def test_verbosity_level_constants(self):
         """Test verbosity level constants are correctly defined."""
-        from config.constants import (
+        from src.config.constants import (
             VERBOSITY_LOW, VERBOSITY_MEDIUM, VERBOSITY_HIGH, VERBOSITY_LEVELS
         )
 
@@ -1061,7 +1061,7 @@ class TestConstants:
 
     def test_api_limits_constants(self):
         """Test API limits and configuration constants."""
-        from config.constants import (
+        from src.config.constants import (
             MAX_TOKENS, MAX_CONTEXT_LENGTH, DEFAULT_TEMPERATURE, MIN_TEMPERATURE, MAX_TEMPERATURE,
             DEFAULT_TOP_P, MIN_TOP_P, MAX_TOP_P, MAX_RETRIES, REQUEST_TIMEOUT
         )
@@ -1093,13 +1093,13 @@ class TestConstants:
 
     def test_constants_immutability(self):
         """Test that constants are properly typed as Final."""
-        from config.constants import GPT_5_MODEL
+        from src.config.constants import GPT_5_MODEL
 
         # Test that constant exists and has expected value
         assert GPT_5_MODEL == "gpt-5"
 
         # Constants should be immutable at runtime (tuple test)
-        from config.constants import GPT_5_MODELS
+        from src.config.constants import GPT_5_MODELS
         assert isinstance(GPT_5_MODELS, tuple)  # tuples are immutable
 
 
@@ -1113,7 +1113,7 @@ class TestLogger:
 
     def test_is_development_detection(self):
         """Test development mode detection logic."""
-        from utils.logger import _is_development
+        from src.utils.logger import _is_development
 
         # Function should return a boolean
         result = _is_development()
@@ -1121,7 +1121,7 @@ class TestLogger:
 
     def test_add_timestamp_processor(self):
         """Test timestamp processor adds timestamp to log entries."""
-        from utils.logger import _add_timestamp
+        from src.utils.logger import _add_timestamp
 
         # Test timestamp addition
         event_dict = {'message': 'test'}
@@ -1135,7 +1135,7 @@ class TestLogger:
 
     def test_filter_by_level_processor(self):
         """Test log level filter processor."""
-        from utils.logger import _filter_by_level
+        from src.utils.logger import _filter_by_level
 
         # Test that filter passes through event dict unchanged
         event_dict = {'message': 'test', 'level': 'info'}
@@ -1144,10 +1144,10 @@ class TestLogger:
         assert result == event_dict
 
 
-    @patch('utils.logger.get_settings')
+    @patch('src.utils.logger.get_settings')
     def test_setup_logger_basic(self, mock_get_settings):
         """Test basic logger setup functionality."""
-        from utils.logger import setup_logger
+        from src.utils.logger import setup_logger
 
         # Mock settings
         mock_settings = MagicMock()
@@ -1158,10 +1158,10 @@ class TestLogger:
         logger = setup_logger()
         assert logger is not None
 
-    @patch('utils.logger.get_settings')
+    @patch('src.utils.logger.get_settings')
     def test_get_logger_basic(self, mock_get_settings):
         """Test get_logger function."""
-        from utils.logger import get_logger
+        from src.utils.logger import get_logger
 
         # Mock settings
         mock_settings = MagicMock()
@@ -1174,7 +1174,7 @@ class TestLogger:
 
     def test_convenience_logging_functions_exist(self):
         """Test that convenience logging functions are available."""
-        from utils.logger import debug, info, warning, error, critical
+        from src.utils.logger import debug, info, warning, error, critical
 
         # Test functions exist and are callable
         assert callable(debug)
