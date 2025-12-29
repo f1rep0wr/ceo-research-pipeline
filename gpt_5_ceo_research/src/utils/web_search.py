@@ -85,27 +85,6 @@ async def web_search_tool(query: str) -> List[Dict[str, Any]]:
             except Exception as e:
                 logger.error(f"Playwright search also failed: {e}")
 
-        # If no real results, return some default sources for CEO research
-        if len(results) == 0 and ("CEO" in query or "chief executive" in query.lower()):
-            logger.info("Providing fallback sources for CEO research")
-            results = [
-                {
-                    'url': 'https://www.bloomberg.com/billionaires',
-                    'title': 'Bloomberg - Business Leaders & CEOs',
-                    'snippet': 'Business news and profiles of industry leaders'
-                },
-                {
-                    'url': 'https://www.forbes.com/lists',
-                    'title': 'Forbes Lists - CEOs and Business Leaders',
-                    'snippet': 'Rankings and profiles of business executives'
-                },
-                {
-                    'url': 'https://www.reuters.com/business',
-                    'title': 'Reuters Business News',
-                    'snippet': 'Latest business and executive news'
-                }
-            ]
-
         return results
 
     except Exception as e:

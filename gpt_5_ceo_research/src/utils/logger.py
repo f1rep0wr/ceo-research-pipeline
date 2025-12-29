@@ -51,11 +51,6 @@ def _add_timestamp(logger: Any, method_name: str, event_dict: Dict[str, Any]) ->
     return event_dict
 
 
-def _filter_by_level(logger: Any, method_name: str, event_dict: Dict[str, Any]) -> Dict[str, Any]:
-    """Filter log entries based on configured log level."""
-    return event_dict
-
-
 def setup_logger() -> structlog.stdlib.BoundLogger:
     """
     Configure and return a structlog logger instance.

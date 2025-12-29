@@ -316,21 +316,3 @@ def _parse_response_to_profile(response_text: str, ceo_name: str, company_name: 
         )
 
 
-async def test_ceo_research():
-    """
-    Test function for development purposes.
-    """
-    try:
-        profile = await research_ceo_with_websearch("Tim Cook", "Apple")
-        print(f"Research completed for {profile.ceo_name}")
-        print(f"Confidence score: {profile.confidence_score}")
-        print(f"Data completeness: {profile.data_completeness}")
-        return profile
-    except Exception as e:
-        print(f"Test failed: {e}")
-        raise
-
-
-if __name__ == "__main__":
-    # Run test if executed directly
-    asyncio.run(test_ceo_research())
