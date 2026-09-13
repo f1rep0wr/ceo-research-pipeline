@@ -28,7 +28,7 @@ This guide covers all configuration options for the GPT-5 CEO Research applicati
 - **Purpose**: Authentication key for OpenAI API access
 - **Required**: Yes
 - **Format**: Must start with `sk-`
-- **Example**: `sk-proj-hEwMkoSpzjeCroYKuJAF...`
+- **Example**: `sk-proj-xxxxxxxxxxxxxxxxxxxxxxxx`
 - **Where to get**: [OpenAI Platform API Keys](https://platform.openai.com/api-keys)
 - **Impact**: Required for all GPT-5 model interactions
 
